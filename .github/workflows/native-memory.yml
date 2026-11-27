@@ -1,0 +1,48 @@
+name: Native memory
+
+on:
+  push:
+    branches: ['refactor/image-processing-v2']
+    paths:
+      - '.github/workflows/native-memory.yml'
+      - 'benchmarks/rss-probe.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rss:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: v1.0.1
+          path: .benchmark-baseline
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: gd, exif
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist --no-dev
+      - run: composer install --working-dir=.benchmark-baseline --no-interaction --prefer-dist --no-dev
+      - name: Compare peak RSS on separate PHP processes
+        run: |
+          set -euo pipefail
+          fixtures="$RUNNER_TEMP/image-fixtures"
+          mkdir -p "$fixtures"
+          php benchmarks/rss-probe.php fixture "$fixtures/jpeg-12mp" jpeg 4000 3000
+          php benchmarks/rss-probe.php fixture "$fixtures/png-12mp" png 4000 3000
+          php benchmarks/rss-probe.php fixture "$fixtures/webp-4mp" webp 2000 2000
+          php benchmarks/rss-probe.php fixture "$fixtures/avif-4mp" avif 2000 2000
+          for case in jpeg-12mp:png png-12mp:jpeg jpeg-12mp:webp webp-4mp:avif; do
+            fixture="${case%:*}"
+            target="${case#*:}"
+            for attempt in 1 2 3; do
+              php benchmarks/rss-probe.php run .benchmark-baseline/vendor/autoload.php "$fixtures/$fixture" "$target" v1
+              php benchmarks/rss-probe.php run vendor/autoload.php "$fixtures/$fixture" "$target" v2
+            done
+          done
