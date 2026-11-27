@@ -30,7 +30,7 @@ jobs:
           coverage: none
           tools: composer:v2
       - run: composer install --no-interaction --prefer-dist
-      - run: composer install --working-dir=.benchmark-previous --no-interaction --prefer-dist --no-dev
+      - run: composer install --working-dir=.benchmark-previous --no-interaction --prefer-dist
       - name: Interleaved before and after comparisons
         run: |
           set -euo pipefail
