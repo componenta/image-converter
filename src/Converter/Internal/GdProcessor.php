@@ -101,9 +101,9 @@ final class GdProcessor
             }
             self::preserveAlpha($image);
         } elseif ($target === 'image/png' && imageistruecolor($image)) {
-            if ($mime === 'image/jpeg') {
-                // JPEG decoding and EXIF orientation produce opaque RGB pixels.
-                // Do not encode a redundant fourth channel in lossless PNG output.
+            if ($mime === 'image/jpeg' || ($mime === 'image/bmp' && ($info['bits'] ?? null) === 24)) {
+                // JPEG (including EXIF orientation) and 24-bit BMP produce opaque
+                // RGB pixels. Avoid a redundant fourth channel in lossless PNG.
                 self::requireSuccess(static fn() => imagesavealpha($image, false), 'Failed to configure opaque PNG encoding.');
             } elseif (imagecolortransparent($image) >= 0) {
                 // An RGB PNG with a transparent color is encoded via tRNS. Enabling
