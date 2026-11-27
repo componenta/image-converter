@@ -22,11 +22,11 @@ jobs:
         with:
           php-version: ${{ matrix.php }}
           coverage: none
-          extensions: gd
+          extensions: gd, exif
           tools: composer:v2
       - run: composer validate --strict
       - run: composer install --no-interaction --prefer-dist
-      - run: composer test
+      - run: composer check
 
   publish:
     if: startsWith(github.event.head_commit.message, 'Release v')
