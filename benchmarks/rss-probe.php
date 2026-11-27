@@ -27,6 +27,7 @@ if (($argv[1] ?? '') === 'fixture') {
         'png' => imagepng($image, $path, 6),
         'webp' => imagewebp($image, $path, 90),
         'avif' => imageavif($image, $path, 90),
+        'bmp' => imagebmp($image, $path),
         default => throw new InvalidArgumentException('Unknown fixture format.'),
     };
     if (!$ok || !is_file($path) || filesize($path) === 0) {

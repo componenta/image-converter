@@ -1,10 +1,10 @@
-name: Compare JPEG to PNG optimization
+name: Compare opaque PNG optimization
 
 on:
   push:
     branches: ['refactor/image-processing-v2']
     paths:
-      - '.github/workflows/jpeg-png-compare.yml'
+      - '.github/workflows/opaque-png-compare.yml'
   workflow_dispatch:
 
 permissions:
@@ -34,19 +34,21 @@ jobs:
       - name: Interleaved before and after comparisons
         run: |
           set -euo pipefail
-          for attempt in 1 2 3; do
-            if [ "$attempt" = 2 ]; then
-              order="after before"
-            else
-              order="before after"
-            fi
-            for version in $order; do
-              echo "JPEG_PNG_COMPARE $attempt $version"
-              if [ "$version" = before ]; then
-                IMAGE_BENCH_EXPECTED_ROOT="$GITHUB_WORKSPACE/.benchmark-previous" vendor/bin/phpbench run benchmarks/ImageConverterBench.php --bootstrap=.benchmark-previous/vendor/autoload.php --variant=jpeg-png-4000x3000-bytes --report=aggregate --iterations=3 --revs=1
+          for variant in jpeg-png-4000x3000-bytes bmp-png-1000x1000-stream bmp-png-2000x2000-bytes; do
+            for attempt in 1 2 3; do
+              if [ "$attempt" = 2 ]; then
+                order="after before"
               else
-                IMAGE_BENCH_EXPECTED_ROOT="$GITHUB_WORKSPACE/src" vendor/bin/phpbench run benchmarks/ImageConverterBench.php --variant=jpeg-png-4000x3000-bytes --report=aggregate --iterations=3 --revs=1
+                order="before after"
               fi
+              for version in $order; do
+                echo "OPAQUE_PNG_COMPARE $variant $attempt $version"
+                if [ "$version" = before ]; then
+                  IMAGE_BENCH_EXPECTED_ROOT="$GITHUB_WORKSPACE/.benchmark-previous" vendor/bin/phpbench run benchmarks/ImageConverterBench.php --bootstrap=.benchmark-previous/vendor/autoload.php --variant="$variant" --report=aggregate --iterations=3 --revs=1
+                else
+                  IMAGE_BENCH_EXPECTED_ROOT="$GITHUB_WORKSPACE/src" vendor/bin/phpbench run benchmarks/ImageConverterBench.php --variant="$variant" --report=aggregate --iterations=3 --revs=1
+                fi
+              done
             done
           done
       - name: Compare output sizes on identical input
@@ -55,3 +57,6 @@ jobs:
           php benchmarks/rss-probe.php fixture "$RUNNER_TEMP/jpeg-12mp" jpeg 4000 3000
           php benchmarks/rss-probe.php run .benchmark-previous/vendor/autoload.php "$RUNNER_TEMP/jpeg-12mp" png before
           php benchmarks/rss-probe.php run vendor/autoload.php "$RUNNER_TEMP/jpeg-12mp" png after
+          php benchmarks/rss-probe.php fixture "$RUNNER_TEMP/bmp-4mp" bmp 2000 2000
+          php benchmarks/rss-probe.php run .benchmark-previous/vendor/autoload.php "$RUNNER_TEMP/bmp-4mp" png before
+          php benchmarks/rss-probe.php run vendor/autoload.php "$RUNNER_TEMP/bmp-4mp" png after
