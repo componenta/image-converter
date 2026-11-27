@@ -37,4 +37,4 @@ test('preserves nonzero grayscale keys and independently transparent palette ent
     'grayscale 8-bit nonzero key' => ['iVBORw0KGgoAAAANSUhEUgAAABgAAAAICAAAAADGymC/AAAAAnRSTlMAf7YpoZUAAAAUSURBVHicY6iHAgYo+A8FDENLAgBQ5F+BQD3zMAAAAABJRU5ErkJggg==', [[127, 127, 127, 127], [0, 0, 0, 0], [0, 255, 255, 255]]],
     'duplicate RGB with different alpha' => ['iVBORw0KGgoAAAANSUhEUgAAACAAAAAIAgMAAADl6xU8AAAADFBMVEUoUIwoUIwUZMjmHiiHfZEeAAAABHRSTlMA/38Apaw3TgAAABRJREFUeJxjYGAIDV216v9/BsoYAEbkH+FFSHNPAAAAAElFTkSuQmCC', [[127, 40, 80, 140], [0, 40, 80, 140], [64, 20, 100, 200], [127, 230, 30, 40]]],
     'short alpha table' => ['iVBORw0KGgoAAAANSUhEUgAAACAAAAAIAgMAAADl6xU8AAAADFBMVEUoUIwoUIwUZMjmHiiHfZEeAAAAA3RSTlP/AH+EVJyeAAAAFElEQVR4nGNgYAgNXbXq/38GyhgARuQf4UVIc08AAAAASUVORK5CYII=', [[0, 40, 80, 140], [127, 40, 80, 140], [64, 20, 100, 200], [0, 230, 30, 40]]],
-])->with(['webp', 'avif']);;
+])->with(['webp', 'avif']);

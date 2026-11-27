@@ -25,7 +25,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: componenta/image-compressor
-          ref: 68d366b36030b98e69167903ae4f1397d6622021
+          ref: c308c46e8420cbfdcfe2db3d5ada786610bba81f
           path: .integration-compressor
       - uses: shivammathur/setup-php@v2
         with:
