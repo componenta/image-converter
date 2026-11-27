@@ -32,6 +32,10 @@ final class ImageConverterBench
         if ($this->baseline !== (getenv('IMAGE_BENCH_BASELINE') === '1')) {
             throw new \RuntimeException('Benchmark resolved the wrong library version: ' . $file);
         }
+        $expectedRoot = getenv('IMAGE_BENCH_EXPECTED_ROOT');
+        if ($expectedRoot !== false && (!is_string($file) || !str_starts_with($file, $expectedRoot . '/'))) {
+            throw new \RuntimeException('Benchmark resolved a different checkout: ' . $file);
+        }
         $image = imagecreatetruecolor($params['width'], $params['height']);
         if ($image === false) {
             throw new \RuntimeException('Unable to allocate fixture.');

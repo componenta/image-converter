@@ -1,0 +1,57 @@
+name: Compare JPEG to PNG optimization
+
+on:
+  push:
+    branches: ['refactor/image-processing-v2']
+    paths:
+      - '.github/workflows/jpeg-png-compare.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      IMAGE_BENCH_COMPARE: '1'
+      IMAGE_BENCH_BASELINE: '0'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: 3bf74d138a0668d1f6110be922a7a99c2d5815cd
+          path: .benchmark-previous
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: gd, exif
+          coverage: none
+          tools: composer:v2
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer install --working-dir=.benchmark-previous --no-interaction --prefer-dist --no-dev
+      - name: Interleaved before and after comparisons
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if [ "$attempt" = 2 ]; then
+              order="after before"
+            else
+              order="before after"
+            fi
+            for version in $order; do
+              echo "JPEG_PNG_COMPARE $attempt $version"
+              if [ "$version" = before ]; then
+                IMAGE_BENCH_EXPECTED_ROOT="$GITHUB_WORKSPACE/.benchmark-previous" vendor/bin/phpbench run benchmarks/ImageConverterBench.php --bootstrap=.benchmark-previous/vendor/autoload.php --variant=jpeg-png-4000x3000-bytes --report=aggregate --iterations=3 --revs=1
+              else
+                IMAGE_BENCH_EXPECTED_ROOT="$GITHUB_WORKSPACE/src" vendor/bin/phpbench run benchmarks/ImageConverterBench.php --variant=jpeg-png-4000x3000-bytes --report=aggregate --iterations=3 --revs=1
+              fi
+            done
+          done
+      - name: Compare output sizes on identical input
+        run: |
+          set -euo pipefail
+          php benchmarks/rss-probe.php fixture "$RUNNER_TEMP/jpeg-12mp" jpeg 4000 3000
+          php benchmarks/rss-probe.php run .benchmark-previous/vendor/autoload.php "$RUNNER_TEMP/jpeg-12mp" png before
+          php benchmarks/rss-probe.php run vendor/autoload.php "$RUNNER_TEMP/jpeg-12mp" png after
