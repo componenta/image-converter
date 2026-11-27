@@ -66,6 +66,19 @@ test('advertised format pairs handle both endpoints of their encoding options', 
     expect($stream->tell())->toBe(7);
     $routed = $service->convert($stream, $targetFormat, $options);
     expect($stream->tell())->toBe(7);
+    $nativeAlpha = null;
+    if ($targetFormat === 'avif' && !$maximum && in_array($sourceFormat, ['png', 'webp', 'avif'], true)) {
+        // libgd quantizes AVIF alpha with the same quality parameter as color.
+        // Compare with its native output, rather than requiring lossless alpha at quality 0.
+        $native = imagecreatefromstring($source);
+        expect($native)->toBeInstanceOf(GdImage::class);
+        imagealphablending($native, false);
+        imagesavealpha($native, true);
+        $nativeBytes = EncodedOutput::capture(static fn(): bool => imageavif($native, null, 0, 10));
+        $nativeDecoded = imagecreatefromstring($nativeBytes);
+        expect($nativeDecoded)->toBeInstanceOf(GdImage::class);
+        $nativeAlpha = static fn(int $x): int => imagecolorsforindex($nativeDecoded, imagecolorat($nativeDecoded, $x, 12))['alpha'];
+    }
     foreach ([$direct, $routed] as $result) {
         expect($result->mimeType)->toBe('image/' . $targetFormat);
         expect($result->extension)->toBe($targetFormat === 'jpeg' ? 'jpg' : $targetFormat);
@@ -78,9 +91,17 @@ test('advertised format pairs handle both endpoints of their encoding options', 
             && $targetFormat !== 'jpeg') {
             // Check real pixel alpha, not just the output MIME or presence of an alpha channel.
             $alpha = static fn(int $x): int => imagecolorsforindex($decoded, imagecolorat($decoded, $x, 12))['alpha'];
-            expect($alpha(8))->toBe(127);
-            expect(abs($alpha(24) - 64))->toBeLessThanOrEqual(2);
-            expect($alpha(40))->toBe(0);
+            if ($nativeAlpha !== null) {
+                foreach ([8, 24, 40] as $x) {
+                    expect($alpha($x))->toBe($nativeAlpha($x));
+                }
+                expect($alpha(8))->toBeGreaterThan($alpha(24));
+                expect($alpha(24))->toBeGreaterThan($alpha(40));
+            } else {
+                expect($alpha(8))->toBe(127);
+                expect(abs($alpha(24) - 64))->toBeLessThanOrEqual(2);
+                expect($alpha(40))->toBe(0);
+            }
         }
     }
 })->with([

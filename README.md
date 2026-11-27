@@ -52,7 +52,7 @@ These limits are not an absolute native-memory or CPU bound. Process isolation, 
 
 ## Image fidelity and errors
 
-Built-in codecs process still images. GIF, declared APNG, animated WebP and AVIF sequences declaring the `avis` brand are unsupported. JPEG EXIF orientation is applied before re-encoding; JPEG output has a white background where transparency must be removed. PNG palette data is not unnecessarily converted to true color. GD does not provide full metadata, ICC profile, HDR or high-bit-depth preservation; PNG compression rejects 16-bit PNG. The output header is checked for format and dimensions, not fully re-decoded after every operation.
+Built-in codecs process still images. GIF, declared APNG, animated WebP and AVIF sequences declaring the `avis` brand are unsupported. JPEG EXIF orientation is applied before re-encoding; JPEG output has a white background where transparency must be removed. PNG palette data is not unnecessarily converted to true color. GD does not provide full metadata, ICC profile, HDR or high-bit-depth preservation. AVIF quality also controls alpha quantization in GD; at low quality transparency values may be approximate. The API does not expose independent lossless alpha for AVIF; PNG compression rejects 16-bit PNG. The output header is checked for format and dimensions, not fully re-decoded after every operation.
 
 Operational failures throw `ConversionException`. Invalid registration or limit configuration throws `InvalidArgumentException`. Unexpected programming errors are not silently suppressed.
 
