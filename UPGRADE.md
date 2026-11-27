@@ -9,3 +9,5 @@
 - JPEG EXIF orientation is applied during re-encoding. Full metadata and ICC profile preservation are not promised.
 
 - Each converter registration identifies a single output format; multiple custom aliases require its canonical image MIME type. A single custom short alias without a declaration implies `image/<alias>`.
+
+- Result objects reject empty bytes, non-image or parameterized MIME types, and invalid extensions. MIME and extension metadata are normalized to lowercase.
