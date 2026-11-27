@@ -17,6 +17,7 @@ final class ImageConverter
 
     /**
      * @param iterable<ImageConverterInterface> $converters
+     * @param ImageConversionLimits $limits Byte limits for the orchestrator; configure each codec's own geometry and byte limits.
      */
     public function __construct(
         private readonly MimeTypeDetectorInterface $detector,

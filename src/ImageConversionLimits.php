@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Image;
 
-/** Byte and dimension limits for image processing; not a guarantee of native codec memory or CPU usage. */
+/** Byte limits for orchestration and codecs; geometry limits for codecs. Not a native memory or CPU bound. */
 final readonly class ImageConversionLimits
 {
     public function __construct(
