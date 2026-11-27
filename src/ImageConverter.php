@@ -81,6 +81,9 @@ final class ImageConverter
         }
 
         $image = $converter->convert($source, $options);
+        if ($image->size > $this->limits->maxOutputBytes) {
+            throw new ConversionException('Encoded image exceeds the output byte limit.');
+        }
         $resultMime = MimeType::tryCreate($image->mimeType);
         if ($image->content === '' || $resultMime === null || !$resultMime->isImage()) {
             throw new ConversionException('Converter returned an invalid image result.');

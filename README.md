@@ -46,7 +46,7 @@ Omitted settings use the codec defaults: JPEG 82, WebP and AVIF 80, PNG level 6,
 
 A seekable stream is read from its beginning and its position is restored on success or failure. A non-seekable stream is consumed once from its current position; capability probes return false without consuming it. The orchestrator sends the same bounded byte snapshot to detection and processing, including custom codecs.
 
-Default `ImageConversionLimits` values: 32 MiB input, 16,000,000 pixels, width and height up to 8192. Supply a different limits object to the constructors or register it in the DI container. Built-in codecs check input bytes and declared dimensions before decoding. Custom codecs must enforce their own decoding limits.
+Default `ImageConversionLimits` values: 32 MiB input, 16,000,000 pixels, width and height up to 8192, and 64 MiB encoded output. Supply a different limits object to the constructors or register it in the DI container. Built-in codecs check input bytes and declared dimensions before decoding and cap retained encoded output. The orchestrator also rejects oversized results from custom codecs; custom codecs must enforce their own decoding and allocation limits.
 
 These limits are not an absolute native-memory or CPU bound. Process isolation, upload validation and resource/time restrictions remain necessary for untrusted inputs.
 

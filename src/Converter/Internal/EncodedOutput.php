@@ -10,21 +10,45 @@ use Componenta\Image\ConversionException;
 final class EncodedOutput
 {
     /** @param callable(): bool $encode */
-    public static function capture(callable $encode): string
+    public static function capture(callable $encode, int $maxBytes = PHP_INT_MAX): string
     {
-        if (!ob_start()) {
+        $content = '';
+        $overflow = false;
+        $level = ob_get_level();
+        // GD writes to the PHP output layer. Consume chunks without forwarding any
+        // bytes to the caller's buffer; retain at most maxBytes of encoded data.
+        if (!ob_start(static function (string $chunk) use (&$content, &$overflow, $maxBytes): string {
+            if (!$overflow) {
+                if (strlen($chunk) > $maxBytes - strlen($content)) {
+                    $overflow = true;
+                    $content = '';
+                } else {
+                    $content .= $chunk;
+                }
+            }
+
+            return '';
+        }, 65536)) {
             throw new ConversionException('Unable to open image output buffer.');
         }
+
         try {
             $success = $encode();
-            $content = ob_get_contents();
-            if (!$success || $content === false || $content === '') {
+            if (!ob_end_flush()) {
+                throw new ConversionException('Unable to finalize image output buffer.');
+            }
+            if ($overflow) {
+                throw new ConversionException('Encoded image exceeds the output byte limit.');
+            }
+            if (!$success || $content === '') {
                 throw new ConversionException('Image encoding failed.');
             }
 
             return $content;
         } finally {
-            ob_end_clean();
+            if (ob_get_level() > $level) {
+                ob_end_clean();
+            }
         }
     }
 }
