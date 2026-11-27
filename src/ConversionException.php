@@ -7,7 +7,7 @@ namespace Componenta\Image;
 /**
  * Thrown when image conversion fails.
  */
-final class ConversionException extends \RuntimeException
+class ConversionException extends \RuntimeException
 {
     public static function unsupportedTarget(string $targetType): self
     {

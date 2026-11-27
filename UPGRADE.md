@@ -11,3 +11,5 @@
 - Each converter registration identifies a single output format; multiple custom aliases require its canonical image MIME type. A single custom short alias without a declaration implies `image/<alias>`.
 
 - Result objects reject empty bytes, non-image or parameterized MIME types, and invalid extensions. MIME and extension metadata are normalized to lowercase.
+
+- A failed seekable stream restoration now throws `ConversionStreamPositionRestoreException` from both operations and capability probes. It preserves both failure causes instead of silently returning false.

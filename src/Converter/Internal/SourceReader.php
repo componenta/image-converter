@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Componenta\Image\Converter\Internal;
 
 use Componenta\Image\ConversionException;
+use Componenta\Image\ConversionStreamPositionRestoreException;
 use Psr\Http\Message\StreamInterface;
 
 /** @internal */
@@ -19,6 +20,7 @@ final class SourceReader
         }
 
         $position = null;
+        $failure = null;
         try {
             if (!$source->isReadable()) {
                 throw new ConversionException('Image source is not readable.');
@@ -47,16 +49,17 @@ final class SourceReader
             }
 
             return $bytes;
-        } catch (ConversionException $error) {
-            throw $error;
-        } catch (\RuntimeException $error) {
-            throw new ConversionException('Unable to read image source.', previous: $error);
+        } catch (\Throwable $error) {
+            $failure = $error instanceof \RuntimeException && !$error instanceof ConversionException
+                ? new ConversionException('Unable to read image source.', previous: $error)
+                : $error;
+            throw $failure;
         } finally {
             if ($position !== null) {
                 try {
                     $source->seek($position);
-                } catch (\RuntimeException $error) {
-                    throw new ConversionException('Unable to restore image source position.', previous: $error);
+                } catch (\Throwable $error) {
+                    throw new ConversionStreamPositionRestoreException($error, $failure);
                 }
             }
         }

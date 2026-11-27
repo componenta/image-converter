@@ -168,6 +168,9 @@ final class ImageConverter
         try {
             $source = SourceReader::read($source, $this->limits->maxInputBytes);
             $sourceMimeType = $this->detector->detectMimeType($source);
+        } catch (ConversionStreamPositionRestoreException $error) {
+            // A failed restoration is a broken ownership guarantee, not a negative capability.
+            throw $error;
         } catch (DetectorException|ConversionException) {
             return false;
         }
