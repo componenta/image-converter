@@ -10,6 +10,7 @@ use Componenta\Image\ConvertedImage;
 use Componenta\Image\ConversionException;
 use Componenta\Image\ImageConverter;
 use Componenta\Image\ImageConverterInterface;
+use Componenta\Image\ImageConversionTargetsProviderInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ConverterRegistrationContractTest extends TestCase
@@ -102,5 +103,51 @@ final class ConverterRegistrationContractTest extends TestCase
         $service = new ImageConverter($this->createStub(MimeTypeDetectorInterface::class));
         $this->expectException(\InvalidArgumentException::class);
         $service->addConverter($this->createStub(ImageConverterInterface::class), 'special', 'other');
+    }
+
+    public function testAdditionalShortAliasInheritsExistingCanonicalFormat(): void
+    {
+        $detector = $this->createStub(MimeTypeDetectorInterface::class);
+        $detector->method('detectMimeType')->willReturn(new MimeType('image/png'));
+        $codec = $this->createStub(ImageConverterInterface::class);
+        $codec->method('supports')->willReturn(true);
+        $codec->method('convert')->willReturn(new ConvertedImage('bytes', 'image/x-special', 'special'));
+        $service = new ImageConverter($detector);
+        $service->addConverter($codec, 'image/x-special');
+        $service->addConverter($codec, 'special', 'other');
+        self::assertSame('image/x-special', $service->convert('source', 'other')->mimeType);
+    }
+
+    public function testFixedConverterCannotRegisterDifferentCanonicalFormatLater(): void
+    {
+        $service = new ImageConverter($this->createStub(MimeTypeDetectorInterface::class));
+        $codec = $this->createStub(ImageConverterInterface::class);
+        $service->addConverter($codec, 'image/x-special');
+        $this->expectException(\InvalidArgumentException::class);
+        $service->addConverter($codec, 'image/x-other');
+    }
+
+    public function testSingleProviderAliasDeterminesFormatForExplicitRegistration(): void
+    {
+        $detector = $this->createStub(MimeTypeDetectorInterface::class);
+        $detector->method('detectMimeType')->willReturn(new MimeType('image/png'));
+        $codec = new class implements ImageConverterInterface, ImageConversionTargetsProviderInterface {
+            public array $conversionTargets {
+                get => ['special'];
+            }
+
+            public function supports(string $mimeType): bool
+            {
+                return true;
+            }
+
+            public function convert(string|\Psr\Http\Message\StreamInterface $source, ?\Componenta\Image\ImageConversionOptions $options = null): ConvertedImage
+            {
+                return new ConvertedImage('bytes', 'image/special', 'special');
+            }
+        };
+        $service = new ImageConverter($detector);
+        $service->addConverter($codec, 'custom-alias');
+        self::assertSame('image/special', $service->convert('source', 'custom-alias')->mimeType);
     }
 }

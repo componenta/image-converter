@@ -42,25 +42,31 @@ final class ImageConverter
             );
         }
 
-        // Validate the complete provider and explicit declaration before changing the registry.
-        $declaredFormat = $this->declaredFormat($declared);
-        $explicitFormat = $this->declaredFormat($targetTypes);
-        $normalized = [];
-        foreach ($targetTypes as $targetType) {
-            $target = $this->normalizeTargetType($targetType);
-            $this->assertValidTarget($target);
-            $normalized[$target] = $target;
+        // Resolve the immutable format before publishing aliases. A fixed converter
+        // cannot acquire a different output format through a later registration.
+        $provider = $this->parseTargets($declared);
+        $requested = $this->parseTargets($targetTypes);
+        $format = $provider['format']
+            ?? (count($provider['aliases']) === 1 ? $provider['aliases'][0] : null);
+        foreach ($this->converters as $registration) {
+            if ($registration['codec'] === $converter) {
+                if ($format !== null && $format !== $registration['format']) {
+                    throw new \InvalidArgumentException('Target format conflicts with the existing converter registration.');
+                }
+                $format = $registration['format'];
+                break;
+            }
         }
-
-        if ($declaredFormat !== null && $explicitFormat !== null && $declaredFormat !== $explicitFormat) {
+        if ($format !== null && $requested['format'] !== null && $format !== $requested['format']) {
             throw new \InvalidArgumentException('Target format conflicts with the converter declaration.');
         }
-        $format = $declaredFormat ?? $explicitFormat;
+        $format ??= $requested['format'];
+        $normalized = $requested['aliases'];
         if ($format === null) {
-            if (count($normalized) !== 1) {
+            if (count($normalized) !== 1 || count($provider['aliases']) > 1) {
                 throw new \InvalidArgumentException('Multiple custom aliases require a canonical image MIME type.');
             }
-            $format = array_values($normalized)[0];
+            $format = $normalized[0];
         }
 
         foreach ($normalized as $target) {
@@ -74,9 +80,13 @@ final class ImageConverter
         }
     }
 
-    /** @param array<array-key, mixed> $targets */
-    private function declaredFormat(array $targets): ?string
+    /**
+     * @param array<array-key, mixed> $targets
+     * @return array{aliases: list<string>, format: ?string}
+     */
+    private function parseTargets(array $targets): array
     {
+        $aliases = [];
         $format = null;
         foreach ($targets as $alias) {
             if (!is_string($alias)) {
@@ -84,6 +94,7 @@ final class ImageConverter
             }
             $target = $this->normalizeTargetType($alias);
             $this->assertValidTarget($target);
+            $aliases[$target] = $target;
             if (!str_starts_with(strtolower(trim($alias)), 'image/')
                 && !in_array($target, ['jpeg', 'png', 'webp', 'avif'], true)) {
                 continue;
@@ -94,7 +105,7 @@ final class ImageConverter
             $format = $target;
         }
 
-        return $format;
+        return ['aliases' => array_values($aliases), 'format' => $format];
     }
 
     private function assertValidTarget(string $target): void
