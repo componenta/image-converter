@@ -58,7 +58,7 @@ Operational failures throw `ConversionException`. Invalid registration or limit 
 
 ## Extension and integration
 
-Implement `ImageConverterInterface` for a custom codec. Implement `ImageConversionTargetsProviderInterface` for automatic target aliases, or pass aliases explicitly to `addConverter()`. Registration of a different converter for an existing normalized alias is rejected atomically. Built-in targets accept names, extensions and image MIME types (e.g. `jpg`, `jpeg`, `image/jpeg`). Custom short aliases are defined by the custom codec. The result MIME type must agree with the operation; custom codecs are responsible for valid bytes.
+Implement `ImageConverterInterface` for a custom codec. Implement `ImageConversionTargetsProviderInterface` for automatic target aliases, or pass aliases explicitly to `addConverter()`. Registration of a different converter for an existing normalized alias is rejected atomically. Built-in targets accept names, extensions and image MIME types (e.g. `jpg`, `jpeg`, `image/jpeg`). All registered aliases are associated with one canonical output format. For multiple custom aliases, include the canonical MIME type (for example `special`, `image/x-special`); a single undeclared short alias implies `image/<alias>`. The canonical MIME type in a codec's provider declaration also applies when registering explicit aliases. The result MIME type must agree with the operation; custom codecs are responsible for valid bytes.
 
 The package declares `Componenta\Image\ConfigProvider` in Composer metadata for provider discovery. The factories use a registered MIME detector or create `FinfoDetector`. For fixed WebP conversion the provider aliases `ImageConverterInterface` to `GdWebPConverter`.
 

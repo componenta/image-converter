@@ -15,6 +15,9 @@ final class ImageConverter
     /** @var array<string, ImageConverterInterface> */
     private array $converters = [];
 
+    /** @var array<string, string> */
+    private array $targetFormats = [];
+
     /**
      * @param iterable<ImageConverterInterface> $converters
      */
@@ -30,10 +33,12 @@ final class ImageConverter
 
     public function addConverter(ImageConverterInterface $converter, string ...$targetTypes): void
     {
-        if ($targetTypes === [] && $converter instanceof ImageConversionTargetsProviderInterface) {
-            $targetTypes = $converter->conversionTargets;
+        $declared = $converter instanceof ImageConversionTargetsProviderInterface
+            ? $converter->conversionTargets
+            : [];
+        if ($targetTypes === []) {
+            $targetTypes = $declared;
         }
-
         if ($targetTypes === []) {
             throw new \InvalidArgumentException(
                 'Target types must be provided for image converters that do not expose conversion targets.',
@@ -42,17 +47,67 @@ final class ImageConverter
 
         $normalized = [];
         foreach ($targetTypes as $targetType) {
-            $target = $this->normalizeTargetType($targetType);
-            if (!preg_match('/^[a-z0-9][a-z0-9!#$&^_.+-]*$/D', $target)) {
+            if (!is_string($targetType)) {
                 throw new \InvalidArgumentException('Invalid image conversion target.');
             }
-            if (isset($this->converters[$target]) && $this->converters[$target] !== $converter) {
+            $target = $this->normalizeTargetType($targetType);
+            $this->assertValidTarget($target);
+            $normalized[$target] = $target;
+        }
+
+        $declaredFormat = $this->declaredFormat($declared);
+        $explicitFormat = $this->declaredFormat($targetTypes);
+        if ($declaredFormat !== null && $explicitFormat !== null && $declaredFormat !== $explicitFormat) {
+            throw new \InvalidArgumentException('Target format conflicts with the converter declaration.');
+        }
+        $format = $declaredFormat ?? $explicitFormat;
+        if ($format === null) {
+            if (count($normalized) !== 1) {
+                throw new \InvalidArgumentException('Multiple custom aliases require a canonical image MIME type.');
+            }
+            $format = reset($normalized);
+        }
+
+        foreach ($normalized as $target) {
+            if (isset($this->converters[$target])
+                && ($this->converters[$target] !== $converter || $this->targetFormats[$target] !== $format)) {
                 throw new \InvalidArgumentException('A different image converter is already registered for this target.');
             }
-            $normalized[] = $target;
         }
         foreach ($normalized as $target) {
             $this->converters[$target] = $converter;
+            $this->targetFormats[$target] = $format;
+        }
+    }
+
+    /** @param array<array-key, mixed> $targets */
+    private function declaredFormat(array $targets): ?string
+    {
+        $format = null;
+        foreach ($targets as $alias) {
+            if (!is_string($alias)) {
+                throw new \InvalidArgumentException('Invalid image conversion target.');
+            }
+            $target = $this->normalizeTargetType($alias);
+            $this->assertValidTarget($target);
+            if (!str_starts_with(strtolower(trim($alias)), 'image/')
+                && !in_array($target, ['jpeg', 'png', 'webp', 'avif'], true)) {
+                continue;
+            }
+            if ($format !== null && $format !== $target) {
+                throw new \InvalidArgumentException('A fixed converter must declare one target image format.');
+            }
+            $format = $target;
+        }
+
+        return $format;
+    }
+
+    private function assertValidTarget(string $target): void
+    {
+        if (!preg_match('/^[a-z0-9][a-z0-9!#$&^_.+-]*$/D', $target)
+            || MimeType::tryCreate('image/' . $target) === null) {
+            throw new \InvalidArgumentException('Invalid image conversion target.');
         }
     }
 
@@ -88,9 +143,7 @@ final class ImageConverter
         if ($image->content === '' || $resultMime === null || !$resultMime->isImage()) {
             throw new ConversionException('Converter returned an invalid image result.');
         }
-        if ((in_array($normalizedTargetType, ['jpeg', 'png', 'webp', 'avif'], true)
-                || str_starts_with(strtolower(trim($targetType)), 'image/'))
-            && $this->normalizeTargetType($resultMime->value) !== $normalizedTargetType) {
+        if ($this->normalizeTargetType($resultMime->value) !== $this->targetFormats[$normalizedTargetType]) {
             throw new ConversionException('Converter returned a different image format.');
         }
 

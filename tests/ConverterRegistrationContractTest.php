@@ -51,4 +51,56 @@ final class ConverterRegistrationContractTest extends TestCase
         $this->expectException(ConversionException::class);
         $service->convert('source', 'webp');
     }
+
+    public function testCustomAliasesEnforceTheSameCanonicalResultMimeType(): void
+    {
+        $detector = $this->createStub(MimeTypeDetectorInterface::class);
+        $detector->method('detectMimeType')->willReturn(new MimeType('image/png'));
+        $codec = $this->createStub(ImageConverterInterface::class);
+        $codec->method('supports')->willReturn(true);
+        $codec->method('convert')->willReturn(new ConvertedImage('bytes', 'image/jpeg', 'jpg'));
+        $service = new ImageConverter($detector);
+        $service->addConverter($codec, 'special', 'image/x-special');
+        foreach (['special', 'image/x-special', 'x-special'] as $target) {
+            try {
+                $service->convert('source', $target);
+                self::fail('Expected rejection of a mismatched result for ' . $target);
+            } catch (ConversionException $error) {
+                self::assertSame('Converter returned a different image format.', $error->getMessage());
+            }
+        }
+    }
+
+    public function testCustomAliasCanReturnItsDeclaredFormat(): void
+    {
+        $detector = $this->createStub(MimeTypeDetectorInterface::class);
+        $detector->method('detectMimeType')->willReturn(new MimeType('image/png'));
+        $codec = $this->createStub(ImageConverterInterface::class);
+        $codec->method('supports')->willReturn(true);
+        $codec->method('convert')->willReturn(new ConvertedImage('bytes', 'image/x-special', 'special'));
+        $service = new ImageConverter($detector);
+        $service->addConverter($codec, 'special', 'image/x-special');
+        self::assertSame('image/x-special', $service->convert('source', 'special')->mimeType);
+        self::assertSame('image/x-special', $service->convert('source', 'image/x-special')->mimeType);
+    }
+
+    public function testConflictingCanonicalFormatsAreRejectedAtomically(): void
+    {
+        $service = new ImageConverter($this->createStub(MimeTypeDetectorInterface::class));
+        $codec = $this->createStub(ImageConverterInterface::class);
+        try {
+            $service->addConverter($codec, 'alias', 'image/jpeg', 'image/png');
+            self::fail('Expected conflicting formats rejection.');
+        } catch (\InvalidArgumentException) {
+            self::assertFalse($service->canConvert('source', 'alias'));
+            self::assertFalse($service->canConvert('source', 'jpeg'));
+        }
+    }
+
+    public function testMultipleCustomAliasesWithoutCanonicalMimeAreRejected(): void
+    {
+        $service = new ImageConverter($this->createStub(MimeTypeDetectorInterface::class));
+        $this->expectException(\InvalidArgumentException::class);
+        $service->addConverter($this->createStub(ImageConverterInterface::class), 'special', 'other');
+    }
 }

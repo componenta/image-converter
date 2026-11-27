@@ -16,6 +16,7 @@ interface ImageConversionTargetsProviderInterface
     /**
      * Target type aliases accepted by the orchestrator, for example
      * "webp", "image/webp", "jpg", or "image/jpeg".
+     * Include the canonical MIME type when declaring multiple custom aliases.
      *
      * @var list<string>
      */
