@@ -6,6 +6,7 @@ namespace Componenta\Image;
 
 use Componenta\Detector\DetectorException;
 use Componenta\Detector\MimeTypeDetectorInterface;
+use Componenta\Detector\MimeType;
 use Componenta\Image\Converter\Internal\SourceReader;
 use Psr\Http\Message\StreamInterface;
 
@@ -39,8 +40,21 @@ final class ImageConverter
             );
         }
 
+        $normalized = [];
         foreach ($targetTypes as $targetType) {
+            $target = $this->normalizeTargetType($targetType);
+            if (!preg_match('/^[a-z0-9][a-z0-9!#        foreach ($targetTypes as $targetType) {
             $this->converters[$this->normalizeTargetType($targetType)] = $converter;
+        }^_.+-]*$/D', $target)) {
+                throw new \InvalidArgumentException('Invalid image conversion target.');
+            }
+            if (isset($this->converters[$target]) && $this->converters[$target] !== $converter) {
+                throw new \InvalidArgumentException('A different image converter is already registered for this target.');
+            }
+            $normalized[] = $target;
+        }
+        foreach ($normalized as $target) {
+            $this->converters[$target] = $converter;
         }
     }
 
@@ -68,7 +82,18 @@ final class ImageConverter
             throw ConversionException::unsupportedSourceType($sourceMimeType->value, $targetType);
         }
 
-        return $converter->convert($source, $options);
+        $image = $converter->convert($source, $options);
+        $resultMime = MimeType::tryCreate($image->mimeType);
+        if ($image->content === '' || $resultMime === null || !$resultMime->isImage()) {
+            throw new ConversionException('Converter returned an invalid image result.');
+        }
+        if ((in_array($normalizedTargetType, ['jpeg', 'png', 'webp', 'avif'], true)
+                || str_starts_with(strtolower(trim($targetType)), 'image/'))
+            && $this->normalizeTargetType($resultMime->value) !== $normalizedTargetType) {
+            throw new ConversionException('Converter returned a different image format.');
+        }
+
+        return $image;
     }
 
     public function canConvert(string|StreamInterface $source, string $targetType): bool

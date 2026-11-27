@@ -69,7 +69,7 @@ final class ConverterStreamContractTest extends TestCase
         $handler = $this->createMock(ImageConverterInterface::class);
         $handler->method('supports')->with('image/png')->willReturn(true);
         $handler->method('convert')->willReturnCallback(
-            static function (string|StreamInterface $source, ?int $quality = null) use ($expected): ConvertedImage {
+            static function (string|StreamInterface $source, ?\Componenta\Image\ImageConversionOptions $options = null) use ($expected): ConvertedImage {
                 self::assertSame($expected, $source);
 
                 return new ConvertedImage('result', 'image/webp', 'webp');
