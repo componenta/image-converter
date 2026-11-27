@@ -1,111 +1,73 @@
 # Componenta Image Converter
 
-Image conversion contracts and GD-backed image converters for Componenta. The package keeps low-level GD calls behind small contracts and provides an `ImageConverter` orchestrator that selects a target converter by requested output type and validates the source MIME type through `componenta/mimetype-detector`.
-
-## Requirements
-
-- PHP 8.4+
-- GD extension
-- `componenta/mimetype-detector` for source MIME detection
+Convert still images to a selected output format. [Русская документация](README.ru.md).
 
 ## Installation
 
-```bash
+```sh
 composer require componenta/image-converter
 ```
 
-The package declares `Componenta\Image\ConfigProvider` in `extra.componenta.config-providers`.
-When `componenta/composer-plugin` is installed, the provider is added to the generated provider list automatically.
+Requires PHP 8.4+, GD, EXIF, Componenta Config 4 and MIME Type Detector 2.
 
-## Main API
+## Usage
 
-`ImageConverterInterface` is the low-level contract implemented by single-target converters:
-
-```php
-use Componenta\Image\ImageConverterInterface;
-use Psr\Http\Message\StreamInterface;
-
-interface ImageConverterInterface
-{
-    public function convert(string|StreamInterface $source, ?int $quality = null): ConvertedImage;
-
-    public function supports(string $mimeType): bool;
-}
-```
-
-`ImageConverter` is the orchestrator for application code that needs to choose the target format at runtime:
+The DI provider registers the `ImageConverter` orchestrator and the four built-in GD codecs. Obtain the orchestrator from the container, or construct it with a `MimeTypeDetectorInterface` and an iterable of codecs.
 
 ```php
-use Componenta\Image\ImageConverter;
+use Componenta\Image\ImageConversionOptions;
 
-if ($converter->canConvert($source, 'webp')) {
-    $image = $converter->convert($source, 'webp', quality: 82);
-}
-
-$image->content;   // binary converted bytes
-$image->mimeType;  // image/webp
-$image->extension; // webp
-$image->size;      // byte length
+$image = $converter->convert($source, 'webp', new ImageConversionOptions(quality: 85));
+$png = $converter->convert($jpegSource, 'png', new ImageConversionOptions(compressionLevel: 7));
 ```
 
-`$source` may be a binary string or `Psr\Http\Message\StreamInterface`. Target types accept short names and MIME types, for example `webp`, `image/webp`, `jpg`, `jpeg`, `image/jpeg`, `png`, and `image/avif`.
+The source is raw bytes (not a filesystem path) or a PSR-7 `StreamInterface`. The result is `ConvertedImage` with read-only `content`, `mimeType`, `extension` and computed `size` in bytes.
 
-## Built-In Converters
+## Formats and options
 
-| Converter | Target | Supported source MIME types |
-|---|---|---|
-| `GdWebPConverter` | `webp`, `image/webp` | JPEG, PNG, BMP. GIF is intentionally not supported because GD would drop animation. |
-| `GdJpegConverter` | `jpeg`, `jpg`, `image/jpeg` | PNG, WebP, AVIF, BMP. Alpha is flattened onto a white background. |
-| `GdPngConverter` | `png`, `image/png` | JPEG, WebP, AVIF, BMP. Alpha is preserved when available. |
-| `GdAvifConverter` | `avif`, `image/avif` | JPEG, PNG, WebP, BMP when the local GD build supports `imageavif()`. |
+| Target | Source formats |
+| --- | --- |
+| JPEG | PNG, WebP, AVIF, BMP |
+| PNG | JPEG, WebP, AVIF, BMP |
+| WebP | JPEG, PNG, AVIF, BMP |
+| AVIF | JPEG, PNG, WebP, BMP |
 
-For JPEG, WebP, and AVIF, quality is `0..100`. For PNG, the same quality range is mapped to GD compression level `0..9`.
+Same-format operations belong to the image-compressor package.
 
-## Extension Points
+Actual codec availability depends on the GD build. `supports()` reports the supported source MIME types and available native codecs. `canConvert($source, 'webp')` checks routing and input-byte limits, not complete image validity.
 
-Implement `ImageConverterInterface` for a new backend or target format. If the converter also implements `ImageConversionTargetsProviderInterface`, the orchestrator can read its `conversionTargets` property automatically:
+- `quality`: JPEG, WebP and AVIF, integer 0–100.
+- `compressionLevel`: PNG, integer 0–9; changes compression effort, not visual quality.
+- `avifSpeed`: AVIF, integer 0–10; lower values favor compression.
 
-```php
-use Componenta\Image\ImageConversionTargetsProviderInterface;
-use Componenta\Image\ImageConverterInterface;
+Omitted settings use the codec defaults: JPEG 82, WebP and AVIF 80, PNG level 6, AVIF speed selected by GD. Unsupported options are rejected.
 
-final class ImagickWebPConverter implements ImageConverterInterface, ImageConversionTargetsProviderInterface
-{
-    public array $conversionTargets {
-        get => ['webp', 'image/webp'];
-    }
+## Input ownership and resource limits
 
-    // convert() and supports()
-}
+A seekable stream is read from its beginning and its position is restored on success or failure. A non-seekable stream is consumed once from its current position; capability probes return false without consuming it. The orchestrator sends the same bounded byte snapshot to detection and processing, including custom codecs.
+
+Default `ImageConversionLimits` values: 32 MiB input, 16,000,000 pixels, width and height up to 8192. Supply a different limits object to the constructors or register it in the DI container. Built-in codecs check input bytes and declared dimensions before decoding. Custom codecs must enforce their own decoding limits.
+
+These limits are not an absolute native-memory or CPU bound. Process isolation, upload validation and resource/time restrictions remain necessary for untrusted inputs.
+
+## Image fidelity and errors
+
+Built-in codecs process still images. GIF, declared APNG, animated WebP and AVIF sequences declaring the `avis` brand are unsupported. JPEG EXIF orientation is applied before re-encoding; JPEG output has a white background where transparency must be removed. PNG palette data is not unnecessarily converted to true color. GD does not provide full metadata, ICC profile, HDR or high-bit-depth preservation; PNG compression rejects 16-bit PNG. The output header is checked for format and dimensions, not fully re-decoded after every operation.
+
+Operational failures throw `ConversionException`. Invalid registration or limit configuration throws `InvalidArgumentException`. Unexpected programming errors are not silently suppressed.
+
+## Extension and integration
+
+Implement `ImageConverterInterface` for a custom codec. Implement `ImageConversionTargetsProviderInterface` for automatic target aliases, or pass aliases explicitly to `addConverter()`. Registration of a different converter for an existing normalized alias is rejected atomically. Built-in targets accept names, extensions and image MIME types (e.g. `jpg`, `jpeg`, `image/jpeg`). Custom short aliases are defined by the custom codec. The result MIME type must agree with the operation; custom codecs are responsible for valid bytes.
+
+The package declares `Componenta\Image\ConfigProvider` in Composer metadata for provider discovery. The factories use a registered MIME detector or create `FinfoDetector`. For fixed WebP conversion the provider aliases `ImageConverterInterface` to `GdWebPConverter`.
+
+## Development
+
+```sh
+composer test
+composer analyse
+composer bench
 ```
 
-Converters can be added after construction:
-
-```php
-$converter->addConverter(new ImagickWebPConverter());
-$converter->addConverter(new CustomFormatConverter(), 'custom', 'image/x-custom');
-```
-
-When target types are passed explicitly to `addConverter()`, they override the optional provider property for registration.
-
-## Failure Model
-
-`ImageConverter` throws `ConversionException` when:
-
-- no converter is registered for the requested target type;
-- the source MIME type cannot be detected;
-- the target converter does not support the detected source MIME type;
-- GD cannot decode or encode the image;
-- quality is outside `0..100`.
-
-Treat conversion as an infrastructure boundary: validate upload constraints before conversion and handle conversion failure as a user-facing invalid media error.
-
-## DI Registration
-
-`ConfigProvider` registers:
-
-- `ImageConverter` through `ImageConverterFactory`;
-- `GdWebPConverter`, `GdJpegConverter`, `GdPngConverter`, and `GdAvifConverter`;
-- `ImageConverterInterface` as an alias to `GdWebPConverter` for code that wants a fixed WebP converter.
-
-`ImageConverterFactory` uses `MimeTypeDetectorInterface` from the container when available and falls back to `FinfoDetector`.
+PHPBench scenarios require a GD build with all built-in codecs. They use deterministic synthetic images at 1, 4 and 12 MP (subject to input limits), and compare raw bytes with streams. See [UPGRADE.md](UPGRADE.md) for migration.

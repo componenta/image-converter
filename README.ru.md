@@ -1,111 +1,73 @@
 # Componenta Image Converter
 
-Контракты конвертации изображений и GD-конвертеры для Componenta. Пакет прячет низкоуровневые вызовы GD за небольшими контрактами и предоставляет оркестратор `ImageConverter`, который выбирает конвертер по целевому формату и проверяет MIME-тип источника через `componenta/mimetype-detector`.
-
-## Требования
-
-- PHP 8.4+
-- расширение GD
-- `componenta/mimetype-detector` для определения MIME-типа источника
+Конвертация статических изображений в выбранный формат. [English documentation](README.md).
 
 ## Установка
 
-```bash
+```sh
 composer require componenta/image-converter
 ```
 
-Пакет объявляет `Componenta\Image\ConfigProvider` в `extra.componenta.config-providers`.
-Если установлен `componenta/composer-plugin`, провайдер автоматически добавляется в сгенерированный список провайдеров.
+Требуются PHP 8.4+, расширения GD и EXIF, Componenta Config 4 и MIME Type Detector 2.
 
-## Основной API
+## Использование
 
-`ImageConverterInterface` — низкоуровневый контракт для конвертеров одного целевого формата:
-
-```php
-use Componenta\Image\ImageConverterInterface;
-use Psr\Http\Message\StreamInterface;
-
-interface ImageConverterInterface
-{
-    public function convert(string|StreamInterface $source, ?int $quality = null): ConvertedImage;
-
-    public function supports(string $mimeType): bool;
-}
-```
-
-`ImageConverter` — оркестратор для прикладного кода, которому нужно выбирать целевой формат во время выполнения:
+Поставщик конфигурации регистрирует `ImageConverter` и четыре встроенных обработчика GD. Получите сервис из контейнера или создайте его, передав `MimeTypeDetectorInterface` и коллекцию обработчиков.
 
 ```php
-use Componenta\Image\ImageConverter;
+use Componenta\Image\ImageConversionOptions;
 
-if ($converter->canConvert($source, 'webp')) {
-    $image = $converter->convert($source, 'webp', quality: 82);
-}
-
-$image->content;   // бинарные байты результата
-$image->mimeType;  // image/webp
-$image->extension; // webp
-$image->size;      // размер в байтах
+$image = $converter->convert($source, 'webp', new ImageConversionOptions(quality: 85));
+$png = $converter->convert($jpegSource, 'png', new ImageConversionOptions(compressionLevel: 7));
 ```
 
-`$source` может быть бинарной строкой или `Psr\Http\Message\StreamInterface`. Целевой тип можно передавать коротким именем или MIME-типом: `webp`, `image/webp`, `jpg`, `jpeg`, `image/jpeg`, `png`, `image/avif`.
+Источник — строка с байтами изображения (не путь к файлу) либо поток PSR-7. Результат `ConvertedImage` содержит доступные только для чтения свойства `content`, `mimeType`, `extension` и вычисляемый размер `size` в байтах.
 
-## Встроенные конвертеры
+## Форматы и параметры
 
-| Конвертер | Цель | Поддерживаемые MIME-типы источника |
-|---|---|---|
-| `GdWebPConverter` | `webp`, `image/webp` | JPEG, PNG, BMP. GIF намеренно не поддерживается, потому что GD потеряет анимацию. |
-| `GdJpegConverter` | `jpeg`, `jpg`, `image/jpeg` | PNG, WebP, AVIF, BMP. Альфа-канал сглаживается на белый фон. |
-| `GdPngConverter` | `png`, `image/png` | JPEG, WebP, AVIF, BMP. Альфа-канал сохраняется, когда он есть. |
-| `GdAvifConverter` | `avif`, `image/avif` | JPEG, PNG, WebP, BMP, если локальная сборка GD поддерживает `imageavif()`. |
+| Целевой формат | Исходные форматы |
+| --- | --- |
+| JPEG | PNG, WebP, AVIF, BMP |
+| PNG | JPEG, WebP, AVIF, BMP |
+| WebP | JPEG, PNG, AVIF, BMP |
+| AVIF | JPEG, PNG, WebP, BMP |
 
-Для JPEG, WebP и AVIF качество задается в диапазоне `0..100`. Для PNG тот же диапазон мапится на уровень сжатия GD `0..9`.
+Обработка без смены формата относится к пакету image-compressor.
 
-## Точки расширения
+Доступность форматов зависит от сборки GD. Метод `supports()` учитывает исходный MIME-тип и наличие кодеков. Метод `canConvert($source, 'webp')` проверяет возможность выбора обработчика и ограничение размера входных данных, а не полную корректность изображения.
 
-Для нового backend или формата реализуйте `ImageConverterInterface`. Если конвертер также реализует `ImageConversionTargetsProviderInterface`, оркестратор сможет автоматически прочитать его свойство `conversionTargets`:
+- `quality` — качество JPEG, WebP и AVIF, от 0 до 100.
+- `compressionLevel` — уровень сжатия PNG, от 0 до 9; не влияет на визуальное качество.
+- `avifSpeed` — скорость кодирования AVIF, от 0 до 10; меньшие значения повышают степень сжатия.
 
-```php
-use Componenta\Image\ImageConversionTargetsProviderInterface;
-use Componenta\Image\ImageConverterInterface;
+Значения по умолчанию: JPEG — 82, WebP и AVIF — 80, PNG — уровень 6, скорость AVIF определяется GD. Неподдерживаемые параметры отклоняются.
 
-final class ImagickWebPConverter implements ImageConverterInterface, ImageConversionTargetsProviderInterface
-{
-    public array $conversionTargets {
-        get => ['webp', 'image/webp'];
-    }
+## Потоки и ограничения ресурсов
 
-    // convert() и supports()
-}
+Перематываемый поток читается с начала; его позиция восстанавливается при успешном выполнении и ошибке. Неперематываемый поток читается один раз с текущей позиции, а предварительная проверка возвращает false, не потребляя данные. Оркестратор передаёт детектору и обработчику один набор байтов, в том числе для пользовательских реализаций.
+
+По умолчанию `ImageConversionLimits` ограничивает входные данные 32 МиБ, разрешение — 16 000 000 пикселей, ширину и высоту — 8192 пикселями. Передайте иной объект ограничений в конструкторы или зарегистрируйте его в контейнере зависимостей. Встроенные обработчики проверяют размер и заявленное разрешение до декодирования. Пользовательские обработчики самостоятельно ограничивают декодирование.
+
+Ограничения не гарантируют точный предел потребления памяти и времени нативными кодеками. Для недоверенных загрузок дополнительно нужны проверка входных данных, изоляция процессов и ограничение ресурсов.
+
+## Корректность изображения и ошибки
+
+Встроенные обработчики работают со статическими изображениями. GIF, APNG с признаком анимации, анимированный WebP и AVIF с заявленным признаком последовательности `avis` не поддерживаются. Ориентация JPEG из EXIF применяется до перекодирования. При преобразовании в JPEG прозрачность заменяется белым фоном. Палитра PNG не преобразуется без необходимости. GD не гарантирует сохранение метаданных, цветовых профилей, расширенного динамического диапазона и большой глубины цвета; компрессор отклоняет 16-битный PNG. Заголовок результата проверяется на формат и размеры, но повторное полное декодирование результата при каждой операции не выполняется.
+
+Ошибки обработки представлены `ConversionException`. Некорректная регистрация или настройка ограничений вызывает `InvalidArgumentException`. Неожиданные программные ошибки не подавляются.
+
+## Расширение и интеграция
+
+Реализуйте `ImageConverterInterface` для пользовательского обработчика. Реализуйте `ImageConversionTargetsProviderInterface` для автоматической регистрации псевдонимов либо укажите их явно в `addConverter()`. Конфликт регистрации разных обработчиков одного нормализованного псевдонима отклоняется целиком. Для встроенных форматов допустимы короткие имена, расширения и MIME-типы (`jpg`, `jpeg`, `image/jpeg`). Пользовательские короткие имена определяет соответствующий обработчик. MIME-тип результата должен соответствовать операции; пользовательский обработчик отвечает за корректность байтов.
+
+Поставщик `Componenta\Image\ConfigProvider` указан в метаданных Composer для автоматического обнаружения. Фабрики используют зарегистрированный детектор или создают `FinfoDetector`. Для преобразования исключительно в WebP интерфейс `ImageConverterInterface` зарегистрирован как псевдоним `GdWebPConverter`.
+
+## Проверки
+
+```sh
+composer test
+composer analyse
+composer bench
 ```
 
-Конвертеры можно добавлять после создания оркестратора:
-
-```php
-$converter->addConverter(new ImagickWebPConverter());
-$converter->addConverter(new CustomFormatConverter(), 'custom', 'image/x-custom');
-```
-
-Если целевые типы переданы в `addConverter()` явно, они используются для регистрации вместо опционального свойства провайдера.
-
-## Ошибки
-
-`ImageConverter` выбрасывает `ConversionException`, если:
-
-- для целевого типа не зарегистрирован конвертер;
-- MIME-тип источника не удалось определить;
-- конвертер целевого формата не поддерживает MIME-тип источника;
-- GD не смог декодировать или закодировать изображение;
-- качество выходит за пределы `0..100`.
-
-Ограничения upload лучше валидировать до конвертации. Ошибку конвертации обрабатывайте как пользовательскую ошибку медиафайла, а не как доменное правило.
-
-## DI-регистрация
-
-`ConfigProvider` регистрирует:
-
-- `ImageConverter` через `ImageConverterFactory`;
-- `GdWebPConverter`, `GdJpegConverter`, `GdPngConverter` и `GdAvifConverter`;
-- `ImageConverterInterface` как alias на `GdWebPConverter` для кода, которому нужен фиксированный WebP-конвертер.
-
-`ImageConverterFactory` берет `MimeTypeDetectorInterface` из контейнера, если он есть, и иначе использует `FinfoDetector`.
+Для измерений нужна сборка GD со всеми встроенными кодеками. PHPBench использует воспроизводимые синтетические изображения на 1, 4 и 12 Мп (в пределах ограничений), сравнивая строки и потоки. Переход с предыдущей версии описан в [UPGRADE.md](UPGRADE.md).

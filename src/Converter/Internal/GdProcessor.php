@@ -84,8 +84,8 @@ final class GdProcessor
         if ($target === 'image/jpeg' && $mime !== 'image/jpeg') {
             $image = self::flatten($image);
         } elseif ($target === 'image/webp' || $target === 'image/avif') {
-            if (!imageistruecolor($image) && !self::native(static fn() => imagepalettetotruecolor($image))) {
-                throw new ConversionException('Failed to convert image palette.');
+            if (!imageistruecolor($image)) {
+                self::requireSuccess(static fn() => imagepalettetotruecolor($image), 'Failed to convert image palette.');
             }
             self::preserveAlpha($image);
         } elseif ($target === 'image/png' && imageistruecolor($image)) {
@@ -129,13 +129,9 @@ final class GdProcessor
     {
         $orientation = self::native(static fn(): int => JpegOrientation::read($raw));
         if (in_array($orientation, [2, 5, 7], true)) {
-            if (!self::native(static fn() => imageflip($image, IMG_FLIP_HORIZONTAL))) {
-                throw new ConversionException('Failed to mirror JPEG orientation.');
-            }
+            self::requireSuccess(static fn() => imageflip($image, IMG_FLIP_HORIZONTAL), 'Failed to mirror JPEG orientation.');
         } elseif ($orientation === 4) {
-            if (!self::native(static fn() => imageflip($image, IMG_FLIP_VERTICAL))) {
-                throw new ConversionException('Failed to mirror JPEG orientation.');
-            }
+            self::requireSuccess(static fn() => imageflip($image, IMG_FLIP_VERTICAL), 'Failed to mirror JPEG orientation.');
         }
         $angle = match ($orientation) {
             3 => 180,
@@ -163,18 +159,27 @@ final class GdProcessor
             throw new ConversionException('Failed to create JPEG canvas.');
         }
         $background = self::native(static fn() => imagecolorallocate($canvas, 255, 255, 255));
-        if ($background === false || !self::native(static fn() => imagefill($canvas, 0, 0, $background))
-            || !self::native(static fn() => imagecopy($canvas, $source, 0, 0, 0, 0, $width, $height))) {
-            throw new ConversionException('Failed to flatten JPEG transparency.');
+        if ($background === false) {
+            throw new ConversionException('Failed to allocate JPEG background.');
         }
+        self::requireSuccess(static fn() => imagefill($canvas, 0, 0, $background), 'Failed to fill JPEG canvas.');
+        self::requireSuccess(static fn() => imagecopy($canvas, $source, 0, 0, 0, 0, $width, $height), 'Failed to flatten JPEG transparency.');
 
         return $canvas;
     }
 
     private static function preserveAlpha(GdImage $image): void
     {
-        if (!imagealphablending($image, false) || !imagesavealpha($image, true)) {
-            throw new ConversionException('Failed to configure alpha preservation.');
+        self::requireSuccess(static fn() => imagealphablending($image, false), 'Failed to configure alpha blending.');
+        self::requireSuccess(static fn() => imagesavealpha($image, true), 'Failed to preserve alpha channel.');
+    }
+
+    /** @param callable(): bool $operation */
+    private static function requireSuccess(callable $operation, string $message): void
+    {
+        // PHP 8.5 narrows several GD return types to true; PHP 8.4 also needs false handling.
+        if (!self::native($operation)) {
+            throw new ConversionException($message);
         }
     }
 
