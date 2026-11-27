@@ -19,9 +19,9 @@ function converterOrientationFixture(int $orientation, bool $littleEndian): stri
     }
     $jpeg = EncodedOutput::capture(static fn(): bool => imagejpeg($image, null, 100));
     $exif = $littleEndian
-        ? "Exif\\0\\0II" . pack('vVvvvVv', 42, 8, 1, 0x112, 3, 1, $orientation) . "\\0\\0" . pack('V', 0)
-        : "Exif\\0\\0MM" . pack('nNnnnNn', 42, 8, 1, 0x112, 3, 1, $orientation) . "\\0\\0" . pack('N', 0);
-    return substr($jpeg, 0, 2) . "\\xff\\xe1" . pack('n', strlen($exif) + 2) . $exif . substr($jpeg, 2);
+        ? "Exif\0\0II" . pack('vVvvvVv', 42, 8, 1, 0x112, 3, 1, $orientation) . "\0\0" . pack('V', 0)
+        : "Exif\0\0MM" . pack('nNnnnNn', 42, 8, 1, 0x112, 3, 1, $orientation) . "\0\0" . pack('N', 0);
+    return substr($jpeg, 0, 2) . "\xff\xe1" . pack('n', strlen($exif) + 2) . $exif . substr($jpeg, 2);
 }
 
 test('all EXIF orientations preserve visual corner positions', function (int $orientation, array $corners, bool $littleEndian): void {

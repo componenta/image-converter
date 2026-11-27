@@ -45,10 +45,10 @@ final class JpegOrientation
         $size = strlen($raw);
         // Skip SOI, then walk segment lengths without inspecting compressed pixels.
         $offset = 2;
-        while ($offset < $size && $raw[$offset] === "\\xff") {
+        while ($offset < $size && $raw[$offset] === "\xff") {
             do {
                 ++$offset;
-            } while ($offset < $size && $raw[$offset] === "\\xff");
+            } while ($offset < $size && $raw[$offset] === "\xff");
             if ($offset >= $size) {
                 return false;
             }
@@ -66,7 +66,7 @@ final class JpegOrientation
             if ($length < 2 || $length > $size - $offset) {
                 return false;
             }
-            if ($marker === 0xe1 && $length >= 8 && substr($raw, $offset + 2, 6) === "Exif\\0\\0") {
+            if ($marker === 0xe1 && $length >= 8 && substr($raw, $offset + 2, 6) === "Exif\0\0") {
                 return true;
             }
             $offset += $length;
