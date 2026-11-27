@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/coinstall.yml'
       - 'tests/integration/coinstall.php'
+      - 'src/**'
+      - 'composer.json'
   workflow_dispatch:
 
 permissions:
