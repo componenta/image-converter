@@ -132,9 +132,9 @@ final readonly class FixedMimeTypeDetector implements MimeTypeDetectorInterface
     ) {}
 
     #[\Override]
-    public function detectMimeType(string|StreamInterface $content, bool $asObject = false): string|MimeType|null
+    public function detectMimeType(string|StreamInterface $content): ?MimeType
     {
-        return $this->mimeType;
+        return $this->mimeType === null ? null : new MimeType($this->mimeType);
     }
 }
 

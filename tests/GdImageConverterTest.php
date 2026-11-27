@@ -19,7 +19,7 @@ final class GdImageConverterTest extends TestCase
 
         self::assertSame('image/webp', $image->mimeType);
         self::assertSame('webp', $image->extension);
-        self::assertSame('image/webp', (new FinfoDetector())->detectMimeType($image->content));
+        self::assertSame('image/webp', (new FinfoDetector())->detectMimeType($image->content)?->value);
     }
 
     public function testConvertsPngToJpeg(): void
@@ -28,7 +28,7 @@ final class GdImageConverterTest extends TestCase
 
         self::assertSame('image/jpeg', $image->mimeType);
         self::assertSame('jpg', $image->extension);
-        self::assertSame('image/jpeg', (new FinfoDetector())->detectMimeType($image->content));
+        self::assertSame('image/jpeg', (new FinfoDetector())->detectMimeType($image->content)?->value);
     }
 
     public function testConvertsJpegToPng(): void
@@ -37,7 +37,7 @@ final class GdImageConverterTest extends TestCase
 
         self::assertSame('image/png', $image->mimeType);
         self::assertSame('png', $image->extension);
-        self::assertSame('image/png', (new FinfoDetector())->detectMimeType($image->content));
+        self::assertSame('image/png', (new FinfoDetector())->detectMimeType($image->content)?->value);
     }
 
     public function testConvertsPngToAvifWhenAvailable(): void
@@ -50,7 +50,7 @@ final class GdImageConverterTest extends TestCase
 
         self::assertSame('image/avif', $image->mimeType);
         self::assertSame('avif', $image->extension);
-        self::assertSame('image/avif', (new FinfoDetector())->detectMimeType($image->content));
+        self::assertSame('image/avif', (new FinfoDetector())->detectMimeType($image->content)?->value);
     }
 
     private function pngFixture(): string

@@ -52,12 +52,12 @@ final class ImageConverter
 
         $sourceMimeType = $this->detector->detectMimeType($source);
 
-        if (!is_string($sourceMimeType) || $sourceMimeType === '') {
+        if ($sourceMimeType === null) {
             throw ConversionException::undetectableSourceType();
         }
 
-        if (!$converter->supports($sourceMimeType)) {
-            throw ConversionException::unsupportedSourceType($sourceMimeType, $targetType);
+        if (!$converter->supports($sourceMimeType->value)) {
+            throw ConversionException::unsupportedSourceType($sourceMimeType->value, $targetType);
         }
 
         return $converter->convert($source, $quality);
@@ -78,9 +78,8 @@ final class ImageConverter
             return false;
         }
 
-        return is_string($sourceMimeType)
-            && $sourceMimeType !== ''
-            && $converter->supports($sourceMimeType);
+        return $sourceMimeType !== null
+            && $converter->supports($sourceMimeType->value);
     }
 
     private function normalizeTargetType(string $targetType): string
