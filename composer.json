@@ -16,7 +16,6 @@
     },
     "autoload": {
         "psr-4": {
-            "Componenta\\Image\\Converter\\Internal\\": "src/Internal/",
             "Componenta\\Image\\": "src/"
         }
     },

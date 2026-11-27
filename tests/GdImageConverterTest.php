@@ -42,7 +42,7 @@ final class GdImageConverterTest extends TestCase
 
     public function testConvertsPngToAvifWhenAvailable(): void
     {
-        if (!function_exists('imageavif')) {
+        if (!(imagetypes() & IMG_AVIF) || !function_exists('imageavif')) {
             self::markTestSkipped('AVIF is not available in the current GD build.');
         }
 
@@ -66,7 +66,7 @@ final class GdImageConverterTest extends TestCase
         $color = imagecolorallocatealpha($gd, 30, 120, 220, 20);
 
         if ($color === false) {
-            imagedestroy($gd);
+
             self::fail('Unable to allocate PNG fixture color.');
         }
 
@@ -75,7 +75,7 @@ final class GdImageConverterTest extends TestCase
         ob_start();
         imagepng($gd);
         $content = ob_get_clean();
-        imagedestroy($gd);
+
 
         self::assertIsString($content);
 
@@ -93,7 +93,7 @@ final class GdImageConverterTest extends TestCase
         $color = imagecolorallocate($gd, 240, 180, 60);
 
         if ($color === false) {
-            imagedestroy($gd);
+
             self::fail('Unable to allocate JPEG fixture color.');
         }
 
@@ -102,7 +102,7 @@ final class GdImageConverterTest extends TestCase
         ob_start();
         imagejpeg($gd);
         $content = ob_get_clean();
-        imagedestroy($gd);
+
 
         self::assertIsString($content);
 
