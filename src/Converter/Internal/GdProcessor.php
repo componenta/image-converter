@@ -242,20 +242,8 @@ final class GdProcessor
         } elseif ($mime === 'image/webp' && strlen($raw) >= 21
             && substr($raw, 12, 4) === 'VP8X' && (ord($raw[20]) & 0x02) !== 0) {
             throw new ConversionException('Animated WebP is not supported.');
-        } elseif ($mime === 'image/avif' && strlen($raw) >= 16 && substr($raw, 4, 4) === 'ftyp') {
-            $header = unpack('Nlength', substr($raw, 0, 4));
-            $length = $header['length'] ?? null;
-            if (!is_int($length) || $length < 16 || $length > strlen($raw) || ($length - 16) % 4 !== 0) {
-                throw new ConversionException('Unsupported AVIF file type box.');
-            }
-            if (substr($raw, 8, 4) === 'avis') {
-                throw new ConversionException('Animated AVIF is not supported.');
-            }
-            for ($offset = 16; $offset < $length; $offset += 4) {
-                if (substr($raw, $offset, 4) === 'avis') {
-                    throw new ConversionException('Animated AVIF is not supported.');
-                }
-            }
+        } elseif ($mime === 'image/avif') {
+            AvifStructure::assertSupported($raw);
         }
     }
 
