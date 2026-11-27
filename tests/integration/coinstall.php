@@ -82,7 +82,8 @@ $opaquePng = $converter->convert($jpeg->content, 'png', new ImageConversionOptio
 $recompressed = $compressor->compress($opaquePng->content, new ImageCompressionOptions(compressionLevel: 9));
 $pngPixels = imagecreatefromstring($recompressed->content);
 if ($jpegPixels === false || $pngPixels === false || ord($opaquePng->content[25]) !== 2
-    || $recompressed->mimeType !== 'image/png' || imagesx($pngPixels) !== 24 || imagesy($pngPixels) !== 8) {
+    || $recompressed->mimeType !== 'image/png' || ord($recompressed->content[25]) !== 2
+    || imagesx($pngPixels) !== 24 || imagesy($pngPixels) !== 8) {
     throw new RuntimeException('Opaque JPEG-to-PNG integration failed.');
 }
 for ($y = 0; $y < 8; ++$y) {
