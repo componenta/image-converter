@@ -90,10 +90,21 @@ final class GdProcessor
         } elseif ($target === 'image/webp' || $target === 'image/avif') {
             if (!imageistruecolor($image)) {
                 self::requireSuccess(static fn() => imagepalettetotruecolor($image), 'Failed to convert image palette.');
+            } elseif (imagecolortransparent($image) >= 0) {
+                // Truecolor PNG tRNS is stored as a color key by GD, not per-pixel alpha.
+                // WebP and AVIF need actual alpha samples. Copy over a transparent canvas,
+                // letting GD skip the keyed pixels without a PHP loop over the image.
+                $image = self::expandColorKey($image);
             }
             self::preserveAlpha($image);
         } elseif ($target === 'image/png' && imageistruecolor($image)) {
-            self::preserveAlpha($image);
+            if (imagecolortransparent($image) >= 0) {
+                // An RGB PNG with a transparent color is encoded via tRNS. Enabling
+                // full-alpha saving here would discard the color key.
+                self::requireSuccess(static fn() => imagesavealpha($image, false), 'Failed to preserve PNG color key.');
+            } else {
+                self::preserveAlpha($image);
+            }
         }
 
         $encoded = EncodedOutput::capture(static fn(): bool => self::native(static fn(): bool => match ($target) {
@@ -167,6 +178,25 @@ final class GdProcessor
         }
         self::requireSuccess(static fn() => imagefill($canvas, 0, 0, $background), 'Failed to fill JPEG canvas.');
         self::requireSuccess(static fn() => imagecopy($canvas, $source, 0, 0, 0, 0, $width, $height), 'Failed to flatten JPEG transparency.');
+
+        return $canvas;
+    }
+
+    private static function expandColorKey(GdImage $source): GdImage
+    {
+        $width = imagesx($source);
+        $height = imagesy($source);
+        $canvas = self::native(static fn() => imagecreatetruecolor($width, $height));
+        if (!$canvas instanceof GdImage) {
+            throw new ConversionException('Failed to allocate transparent canvas.');
+        }
+        self::preserveAlpha($canvas);
+        $transparent = self::native(static fn() => imagecolorallocatealpha($canvas, 0, 0, 0, 127));
+        if ($transparent === false) {
+            throw new ConversionException('Failed to allocate transparent color.');
+        }
+        self::requireSuccess(static fn() => imagefill($canvas, 0, 0, $transparent), 'Failed to fill transparent canvas.');
+        self::requireSuccess(static fn() => imagecopy($canvas, $source, 0, 0, 0, 0, $width, $height), 'Failed to expand color-key transparency.');
 
         return $canvas;
     }
