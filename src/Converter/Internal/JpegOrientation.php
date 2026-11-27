@@ -11,8 +11,8 @@ final class JpegOrientation
 {
     public static function read(string $raw): int
     {
-        // No EXIF signature means no EXIF orientation to apply.
-        if (!str_contains($raw, "Exif\0\0")) {
+        // Only an APP1 marker in the JPEG header can declare EXIF orientation.
+        if (!self::hasExifSegment($raw)) {
             return 1;
         }
 
@@ -38,5 +38,40 @@ final class JpegOrientation
                 fclose($stream);
             }
         }
+    }
+
+    private static function hasExifSegment(string $raw): bool
+    {
+        $size = strlen($raw);
+        // Skip SOI, then walk segment lengths without inspecting compressed pixels.
+        $offset = 2;
+        while ($offset < $size && $raw[$offset] === "\\xff") {
+            do {
+                ++$offset;
+            } while ($offset < $size && $raw[$offset] === "\\xff");
+            if ($offset >= $size) {
+                return false;
+            }
+            $marker = ord($raw[$offset++]);
+            if ($marker === 0xda || $marker === 0xd9) {
+                return false;
+            }
+            if ($marker === 0x01 || ($marker >= 0xd0 && $marker <= 0xd7)) {
+                continue;
+            }
+            if ($size - $offset < 2) {
+                return false;
+            }
+            $length = ord($raw[$offset]) * 256 + ord($raw[$offset + 1]);
+            if ($length < 2 || $length > $size - $offset) {
+                return false;
+            }
+            if ($marker === 0xe1 && $length >= 8 && substr($raw, $offset + 2, 6) === "Exif\\0\\0") {
+                return true;
+            }
+            $offset += $length;
+        }
+
+        return false;
     }
 }

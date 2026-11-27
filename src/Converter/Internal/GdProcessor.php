@@ -68,6 +68,13 @@ final class GdProcessor
             throw new ConversionException('GD cannot preserve the bit depth of this PNG.');
         }
 
+        $orientation = $mime === 'image/jpeg'
+            ? self::native(static fn(): int => JpegOrientation::read($raw))
+            : 1;
+        if ($orientation >= 5 && ($height > $limits->maxWidth || $width > $limits->maxHeight)) {
+            throw new ConversionException('Oriented image dimensions exceed configured limits.');
+        }
+
         $image = self::native(static fn() => imagecreatefromstring($raw));
         if (!$image instanceof GdImage) {
             throw new ConversionException('Failed to decode image.');
@@ -75,11 +82,8 @@ final class GdProcessor
         if (imagesx($image) !== $width || imagesy($image) !== $height) {
             throw new ConversionException('Decoded dimensions differ from the image header.');
         }
-        if ($mime === 'image/jpeg') {
-            $image = self::orientJpeg($image, $raw);
-            if (imagesx($image) > $limits->maxWidth || imagesy($image) > $limits->maxHeight) {
-                throw new ConversionException('Oriented image dimensions exceed configured limits.');
-            }
+        if ($orientation !== 1) {
+            $image = self::orientJpeg($image, $orientation);
         }
         if ($target === 'image/jpeg' && $mime !== 'image/jpeg') {
             $image = self::flatten($image);
@@ -125,9 +129,8 @@ final class GdProcessor
         return $flag !== 0 && (imagetypes() & $flag) !== 0;
     }
 
-    private static function orientJpeg(GdImage $image, string $raw): GdImage
+    private static function orientJpeg(GdImage $image, int $orientation): GdImage
     {
-        $orientation = self::native(static fn(): int => JpegOrientation::read($raw));
         if (in_array($orientation, [2, 5, 7], true)) {
             self::requireSuccess(static fn() => imageflip($image, IMG_FLIP_HORIZONTAL), 'Failed to mirror JPEG orientation.');
         } elseif ($orientation === 4) {
