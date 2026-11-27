@@ -34,7 +34,7 @@ final class GdJpegConverter implements ImageConverterInterface, ImageConversionT
         if ($options?->compressionLevel !== null || $options?->avifSpeed !== null) {
             throw new ConversionException('Options are not supported by this image codec.');
         }
-        $level = $options?->quality ?? $this->defaultQuality;
+        $level = $options->quality ?? $this->defaultQuality;
         $content = GdProcessor::process($source, self::SUPPORTED, 'image/jpeg', $level, $this->limits);
 
         return new ConvertedImage($content, 'image/jpeg', 'jpg');

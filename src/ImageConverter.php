@@ -43,9 +43,7 @@ final class ImageConverter
         $normalized = [];
         foreach ($targetTypes as $targetType) {
             $target = $this->normalizeTargetType($targetType);
-            if (!preg_match('/^[a-z0-9][a-z0-9!#        foreach ($targetTypes as $targetType) {
-            $this->converters[$this->normalizeTargetType($targetType)] = $converter;
-        }^_.+-]*$/D', $target)) {
+            if (!preg_match('/^[a-z0-9][a-z0-9!#$&^_.+-]*$/D', $target)) {
                 throw new \InvalidArgumentException('Invalid image conversion target.');
             }
             if (isset($this->converters[$target]) && $this->converters[$target] !== $converter) {

@@ -30,19 +30,18 @@ final class SourceReader
 
             $bytes = '';
             $remaining = $maxBytes;
+            $madeProgress = true;
             while (!$source->eof()) {
+                if (!$madeProgress) {
+                    throw new ConversionException('Image source made no progress before EOF.');
+                }
                 $length = $remaining === 0 ? 1 : min(65536, $remaining);
                 $chunk = $source->read($length);
                 $count = strlen($chunk);
                 if ($count > $length || $count > $remaining) {
                     throw new ConversionException('Image source exceeds the input byte limit.');
                 }
-                if ($count === 0) {
-                    if ($source->eof()) {
-                        break;
-                    }
-                    throw new ConversionException('Image source made no progress before EOF.');
-                }
+                $madeProgress = $count !== 0;
                 $bytes .= $chunk;
                 $remaining -= $count;
             }

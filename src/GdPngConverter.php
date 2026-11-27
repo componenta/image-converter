@@ -34,7 +34,7 @@ final class GdPngConverter implements ImageConverterInterface, ImageConversionTa
         if ($options?->quality !== null || $options?->avifSpeed !== null) {
             throw new ConversionException('PNG supports compressionLevel, not quality or avifSpeed.');
         }
-        $level = $options?->compressionLevel ?? $this->defaultCompressionLevel;
+        $level = $options->compressionLevel ?? $this->defaultCompressionLevel;
         $content = GdProcessor::process($source, self::SUPPORTED, 'image/png', $level, $this->limits);
 
         return new ConvertedImage($content, 'image/png', 'png');

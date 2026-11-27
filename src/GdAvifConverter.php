@@ -34,7 +34,7 @@ final class GdAvifConverter implements ImageConverterInterface, ImageConversionT
         if ($options?->compressionLevel !== null) {
             throw new ConversionException('Options are not supported by this image codec.');
         }
-        $level = $options?->quality ?? $this->defaultQuality;
+        $level = $options->quality ?? $this->defaultQuality;
         $content = GdProcessor::process($source, self::SUPPORTED, 'image/avif', $level, $this->limits, avifSpeed: $options?->avifSpeed);
 
         return new ConvertedImage($content, 'image/avif', 'avif');
