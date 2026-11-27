@@ -12,11 +12,8 @@ use Psr\Http\Message\StreamInterface;
 
 final class ImageConverter
 {
-    /** @var array<string, ImageConverterInterface> */
+    /** @var array<string, array{codec: ImageConverterInterface, format: string}> */
     private array $converters = [];
-
-    /** @var array<string, string> */
-    private array $targetFormats = [];
 
     /**
      * @param iterable<ImageConverterInterface> $converters
@@ -45,18 +42,16 @@ final class ImageConverter
             );
         }
 
+        // Validate the complete provider and explicit declaration before changing the registry.
+        $declaredFormat = $this->declaredFormat($declared);
+        $explicitFormat = $this->declaredFormat($targetTypes);
         $normalized = [];
         foreach ($targetTypes as $targetType) {
-            if (!is_string($targetType)) {
-                throw new \InvalidArgumentException('Invalid image conversion target.');
-            }
             $target = $this->normalizeTargetType($targetType);
             $this->assertValidTarget($target);
             $normalized[$target] = $target;
         }
 
-        $declaredFormat = $this->declaredFormat($declared);
-        $explicitFormat = $this->declaredFormat($targetTypes);
         if ($declaredFormat !== null && $explicitFormat !== null && $declaredFormat !== $explicitFormat) {
             throw new \InvalidArgumentException('Target format conflicts with the converter declaration.');
         }
@@ -65,18 +60,17 @@ final class ImageConverter
             if (count($normalized) !== 1) {
                 throw new \InvalidArgumentException('Multiple custom aliases require a canonical image MIME type.');
             }
-            $format = reset($normalized);
+            $format = array_values($normalized)[0];
         }
 
         foreach ($normalized as $target) {
             if (isset($this->converters[$target])
-                && ($this->converters[$target] !== $converter || $this->targetFormats[$target] !== $format)) {
+                && ($this->converters[$target]['codec'] !== $converter || $this->converters[$target]['format'] !== $format)) {
                 throw new \InvalidArgumentException('A different image converter is already registered for this target.');
             }
         }
         foreach ($normalized as $target) {
-            $this->converters[$target] = $converter;
-            $this->targetFormats[$target] = $format;
+            $this->converters[$target] = ['codec' => $converter, 'format' => $format];
         }
     }
 
@@ -114,11 +108,12 @@ final class ImageConverter
     public function convert(string|StreamInterface $source, string $targetType, ?ImageConversionOptions $options = null): ConvertedImage
     {
         $normalizedTargetType = $this->normalizeTargetType($targetType);
-        $converter = $this->converters[$normalizedTargetType] ?? null;
+        $registration = $this->converters[$normalizedTargetType] ?? null;
 
-        if (!$converter instanceof ImageConverterInterface) {
+        if ($registration === null) {
             throw ConversionException::unsupportedTarget($targetType);
         }
+        $converter = $registration['codec'];
 
         $source = SourceReader::read($source, $this->limits->maxInputBytes);
         try {
@@ -143,7 +138,7 @@ final class ImageConverter
         if ($image->content === '' || $resultMime === null || !$resultMime->isImage()) {
             throw new ConversionException('Converter returned an invalid image result.');
         }
-        if ($this->normalizeTargetType($resultMime->value) !== $this->targetFormats[$normalizedTargetType]) {
+        if ($this->normalizeTargetType($resultMime->value) !== $registration['format']) {
             throw new ConversionException('Converter returned a different image format.');
         }
 
@@ -153,9 +148,9 @@ final class ImageConverter
     public function canConvert(string|StreamInterface $source, string $targetType): bool
     {
         $normalizedTargetType = $this->normalizeTargetType($targetType);
-        $converter = $this->converters[$normalizedTargetType] ?? null;
+        $registration = $this->converters[$normalizedTargetType] ?? null;
 
-        if (!$converter instanceof ImageConverterInterface) {
+        if ($registration === null) {
             return false;
         }
 
@@ -171,7 +166,7 @@ final class ImageConverter
         }
 
         return $sourceMimeType !== null
-            && $converter->supports($sourceMimeType->value);
+            && $registration['codec']->supports($sourceMimeType->value);
     }
 
     private function normalizeTargetType(string $targetType): string
