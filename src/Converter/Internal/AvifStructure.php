@@ -15,11 +15,18 @@ use Generator;
  */
 final class AvifStructure
 {
+    // ipma has at most 15 bits for a nonzero property index.
+    private const int MAX_PROPERTY_COUNT = 0x7fff;
+
     public static function assertSupported(string $raw): void
     {
         $hasFileType = false;
+        $hasMeta = false;
         foreach (self::boxes($raw, 0, strlen($raw)) as [$type, $start, $end]) {
             if ($type === 'ftyp') {
+                if ($hasFileType) {
+                    throw new ConversionException('Duplicate AVIF file type box.');
+                }
                 $hasFileType = true;
                 if ($end - $start < 8 || ($end - $start) % 4 !== 0) {
                     throw new ConversionException('Invalid AVIF file type box.');
@@ -33,11 +40,20 @@ final class AvifStructure
                     }
                 }
             } elseif ($type === 'meta') {
+                if ($hasMeta) {
+                    throw new ConversionException('Duplicate AVIF metadata box.');
+                }
+                $hasMeta = true;
                 if ($end - $start < 4 || ord($raw[$start]) !== 0) {
                     throw new ConversionException('Invalid AVIF metadata box.');
                 }
+                $hasItemProperties = false;
                 foreach (self::boxes($raw, $start + 4, $end) as [$child, $from, $to]) {
                     if ($child === 'iprp') {
+                        if ($hasItemProperties) {
+                            throw new ConversionException('Duplicate AVIF item properties box.');
+                        }
+                        $hasItemProperties = true;
                         self::assertProperties($raw, $from, $to);
                     }
                 }
@@ -63,7 +79,9 @@ final class AvifStructure
             }
             $hasContainer = true;
             foreach (self::boxes($raw, $from, $to) as [$property, $payload, $limit]) {
-                ++$count;
+                if (++$count > self::MAX_PROPERTY_COUNT) {
+                    throw new ConversionException('AVIF property count exceeds supported limit.');
+                }
                 if ($property === 'ispe') {
                     $properties[$count] = [$property, $payload, $limit];
                 } elseif (in_array($property, ['irot', 'imir', 'clap', 'pasp'], true)) {

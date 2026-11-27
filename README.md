@@ -48,6 +48,8 @@ A seekable stream is read from its beginning and its position is restored on suc
 
 Default `ImageConversionLimits` values: 32 MiB input, 16,000,000 pixels, width and height up to 8192, and 64 MiB encoded output. Register a limits object in the DI container to configure the orchestrator and its built-in codecs together. For manual construction, pass the same limits object to the orchestrator and each codec: the orchestrator enforces byte limits, and the codec enforces dimensions and its own byte limits. An independently constructed or overridden codec retains its own configuration. Built-in codecs check input bytes and declared dimensions before decoding and cap retained encoded output. The orchestrator also rejects oversized results from custom codecs; custom codecs must enforce their own decoding and allocation limits.
 
+AVIF structural inspection rejects duplicate file-type, metadata and item-property containers and limits each item-property container to 32,767 properties (the largest addressable property index).
+
 These limits are not an absolute native-memory or CPU bound. Process isolation, upload validation and resource/time restrictions remain necessary for untrusted inputs.
 
 ## Image fidelity and errors
