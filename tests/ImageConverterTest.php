@@ -9,6 +9,7 @@ use Componenta\Detector\MimeTypeDetectorInterface;
 use Componenta\Image\ConvertedImage;
 use Componenta\Image\ConversionException;
 use Componenta\Image\ImageConversionTargetsProviderInterface;
+use Componenta\Image\ImageConversionOptions;
 use Componenta\Image\ImageConverter;
 use Componenta\Image\ImageConverterInterface;
 use PHPUnit\Framework\TestCase;
@@ -23,7 +24,7 @@ final class ImageConverterTest extends TestCase
             converters: [$targetConverter = new TargetAwareConverter()],
         );
 
-        $image = $converter->convert('source-bytes', 'image/webp', 91);
+        $image = $converter->convert('source-bytes', 'image/webp', new ImageConversionOptions(quality: 91));
 
         self::assertSame('converted-webp', $image->content);
         self::assertSame('image/webp', $image->mimeType);
@@ -151,10 +152,10 @@ final class TargetAwareConverter implements ImageConverterInterface, ImageConver
     }
 
     #[\Override]
-    public function convert(string|StreamInterface $source, ?int $quality = null): ConvertedImage
+    public function convert(string|StreamInterface $source, ?ImageConversionOptions $options = null): ConvertedImage
     {
         $this->source = $source;
-        $this->quality = $quality;
+        $this->quality = $options?->quality;
 
         return new ConvertedImage('converted-webp', 'image/webp', 'webp');
     }
@@ -169,7 +170,7 @@ final class TargetAwareConverter implements ImageConverterInterface, ImageConver
 final readonly class ExplicitTargetConverter implements ImageConverterInterface
 {
     #[\Override]
-    public function convert(string|StreamInterface $source, ?int $quality = null): ConvertedImage
+    public function convert(string|StreamInterface $source, ?ImageConversionOptions $options = null): ConvertedImage
     {
         return new ConvertedImage('converted-custom', 'image/custom', 'custom');
     }

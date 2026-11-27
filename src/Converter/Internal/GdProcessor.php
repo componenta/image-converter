@@ -46,6 +46,7 @@ final class GdProcessor
         string $target,
         int $quality,
         ImageConversionLimits $limits,
+        ?int $avifSpeed = null,
     ): string {
         $raw = SourceReader::read($source, $limits->maxInputBytes);
         $info = self::native(static fn() => getimagesizefromstring($raw));
@@ -95,7 +96,7 @@ final class GdProcessor
             'image/jpeg' => imagejpeg($image, null, $quality),
             'image/png' => imagepng($image, null, $quality),
             'image/webp' => imagewebp($image, null, $quality),
-            'image/avif' => imageavif($image, null, $quality),
+            'image/avif' => imageavif($image, null, $quality, $avifSpeed ?? -1),
             default => throw new ConversionException('Unsupported encoding format.'),
         }));
         $output = self::native(static fn() => getimagesizefromstring($encoded));

@@ -29,12 +29,12 @@ final class GdJpegConverter implements ImageConverterInterface, ImageConversionT
     #[\Override]
     public function convert(
         string|StreamInterface $source,
-        ?int $quality = null,
+        ?ImageConversionOptions $options = null,
     ): ConvertedImage {
-        $level = $quality ?? $this->defaultQuality;
-        if ($level < 0 || $level > 100) {
-            throw ConversionException::invalidQuality($level);
+        if ($options?->compressionLevel !== null || $options?->avifSpeed !== null) {
+            throw new ConversionException('Options are not supported by this image codec.');
         }
+        $level = $options?->quality ?? $this->defaultQuality;
         $content = GdProcessor::process($source, self::SUPPORTED, 'image/jpeg', $level, $this->limits);
 
         return new ConvertedImage($content, 'image/jpeg', 'jpg');

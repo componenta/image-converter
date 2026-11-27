@@ -44,7 +44,7 @@ final class ImageConverter
         }
     }
 
-    public function convert(string|StreamInterface $source, string $targetType, ?int $quality = null): ConvertedImage
+    public function convert(string|StreamInterface $source, string $targetType, ?ImageConversionOptions $options = null): ConvertedImage
     {
         $normalizedTargetType = $this->normalizeTargetType($targetType);
         $converter = $this->converters[$normalizedTargetType] ?? null;
@@ -68,7 +68,7 @@ final class ImageConverter
             throw ConversionException::unsupportedSourceType($sourceMimeType->value, $targetType);
         }
 
-        return $converter->convert($source, $quality);
+        return $converter->convert($source, $options);
     }
 
     public function canConvert(string|StreamInterface $source, string $targetType): bool

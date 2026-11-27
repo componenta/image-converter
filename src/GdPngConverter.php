@@ -29,13 +29,12 @@ final class GdPngConverter implements ImageConverterInterface, ImageConversionTa
     #[\Override]
     public function convert(
         string|StreamInterface $source,
-        ?int $quality = null,
+        ?ImageConversionOptions $options = null,
     ): ConvertedImage {
-        $quality = $quality;
-        if ($quality !== null && ($quality < 0 || $quality > 100)) {
-            throw ConversionException::invalidQuality($quality);
+        if ($options?->quality !== null || $options?->avifSpeed !== null) {
+            throw new ConversionException('PNG supports compressionLevel, not quality or avifSpeed.');
         }
-        $level = $quality === null ? $this->defaultCompressionLevel : 9 - (int) round($quality / 100 * 9);
+        $level = $options?->compressionLevel ?? $this->defaultCompressionLevel;
         $content = GdProcessor::process($source, self::SUPPORTED, 'image/png', $level, $this->limits);
 
         return new ConvertedImage($content, 'image/png', 'png');
