@@ -16,4 +16,4 @@
 
 - For image MIME types mapped in the default MIME catalog, result extensions must match that catalog. Unmapped custom image types can supply their own valid extension.
 
-- AVIF input with associated non-identity display transformations is rejected instead of silently dropping those transformations during re-encoding. Identity and unused properties remain accepted.
+- AVIF input with non-identity display transformations of the primary color item is rejected instead of silently dropping those transformations during re-encoding. Identity, unused and independent thumbnail properties remain accepted.

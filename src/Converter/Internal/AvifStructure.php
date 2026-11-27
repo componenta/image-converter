@@ -47,15 +47,24 @@ final class AvifStructure
                 if ($end - $start < 4 || ord($raw[$start]) !== 0) {
                     throw new ConversionException('Invalid AVIF metadata box.');
                 }
-                $hasItemProperties = false;
+                $itemProperties = null;
+                $primaryItem = null;
                 foreach (self::boxes($raw, $start + 4, $end) as [$child, $from, $to]) {
-                    if ($child === 'iprp') {
-                        if ($hasItemProperties) {
+                    if ($child === 'pitm') {
+                        if ($primaryItem !== null) {
+                            throw new ConversionException('Duplicate AVIF primary item box.');
+                        }
+                        $primaryItem = self::primaryItem($raw, $from, $to);
+                    } elseif ($child === 'iprp') {
+                        if ($itemProperties !== null) {
                             throw new ConversionException('Duplicate AVIF item properties box.');
                         }
-                        $hasItemProperties = true;
-                        self::assertProperties($raw, $from, $to);
+                        $itemProperties = [$from, $to];
                     }
+                }
+                // pitm and iprp may appear in either order.
+                if ($itemProperties !== null) {
+                    self::assertProperties($raw, $itemProperties[0], $itemProperties[1], $primaryItem);
                 }
             }
         }
@@ -64,7 +73,29 @@ final class AvifStructure
         }
     }
 
-    private static function assertProperties(string $raw, int $start, int $end): void
+    private static function primaryItem(string $raw, int $start, int $end): int
+    {
+        $length = $end - $start;
+        if ($length < 4) {
+            throw new ConversionException('Truncated AVIF primary item box.');
+        }
+        $version = ord($raw[$start]);
+        if (($version !== 0 && $version !== 1)
+            || $length !== ($version === 0 ? 6 : 8)
+            || (self::uint32($raw, $start) & 0xffffff) !== 0) {
+            throw new ConversionException('Invalid AVIF primary item box.');
+        }
+        $id = $version === 0
+            ? ord($raw[$start + 4]) * 256 + ord($raw[$start + 5])
+            : self::uint32($raw, $start + 4);
+        if ($id === 0) {
+            throw new ConversionException('Invalid AVIF primary item identifier.');
+        }
+
+        return $id;
+    }
+
+    private static function assertProperties(string $raw, int $start, int $end, ?int $primaryItem): void
     {
         $properties = [];
         $count = 0;
@@ -94,11 +125,16 @@ final class AvifStructure
             return;
         }
 
-        // Only associated properties affect an item. An unused property must not
-        // prevent a valid image from being processed.
+        if ($primaryItem === null) {
+            throw new ConversionException('Missing AVIF primary item box.');
+        }
+
+        // libavif reports display transformations of the primary color item.
+        // Other items, including thumbnails and auxiliary items, do not define
+        // the display geometry of the image decoded by GD.
         foreach (self::boxes($raw, $start, $end) as [$type, $from, $to]) {
             if ($type === 'ipma') {
-                self::assertAssociations($raw, $from, $to, $properties, $count);
+                self::assertAssociations($raw, $from, $to, $properties, $count, $primaryItem);
             }
         }
     }
@@ -110,6 +146,7 @@ final class AvifStructure
         int $end,
         array $properties,
         int $propertyCount,
+        int $primaryItem,
     ): void {
         if ($end - $offset < 8) {
             throw new ConversionException('Invalid AVIF property associations.');
@@ -128,6 +165,9 @@ final class AvifStructure
             if ($end - $offset < $idSize + 1) {
                 throw new ConversionException('Truncated AVIF property association entry.');
             }
+            $itemId = $version === 0
+                ? ord($raw[$offset]) * 256 + ord($raw[$offset + 1])
+                : self::uint32($raw, $offset);
             $offset += $idSize;
             $count = ord($raw[$offset++]);
             if ($count > intdiv($end - $offset, $associationSize)) {
@@ -142,6 +182,11 @@ final class AvifStructure
                 }
                 if ($propertyIndex > $propertyCount) {
                     throw new ConversionException('Invalid AVIF property index.');
+                }
+                // Validate the indices for every association, but apply the
+                // geometry policy only to the actual primary image.
+                if ($itemId !== $primaryItem) {
+                    continue;
                 }
                 $property = $properties[$propertyIndex] ?? null;
                 if ($property === null) {
