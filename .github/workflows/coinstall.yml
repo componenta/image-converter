@@ -1,0 +1,52 @@
+name: Co-installation
+
+on:
+  push:
+    branches: ['refactor/image-processing-v2']
+    paths:
+      - '.github/workflows/coinstall.yml'
+      - 'tests/integration/coinstall.php'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coinstall:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: componenta/image-compressor
+          ref: e8a9695dbfe3c20bf52c3d61f832a2bcd7a919cb
+          path: .integration-compressor
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: gd, exif
+          coverage: none
+          tools: composer:v2
+      - name: Install both packages in a clean consumer
+        run: |
+          mkdir -p "$RUNNER_TEMP/image-consumer"
+          php -r '
+              $workspace = getenv("GITHUB_WORKSPACE");
+              $manifest = [
+                  "repositories" => [
+                      ["type" => "path", "url" => $workspace . "/.integration-compressor", "options" => ["symlink" => true, "versions" => ["componenta/image-compressor" => "2.0.0"]]],
+                      ["type" => "path", "url" => $workspace, "options" => ["symlink" => true, "versions" => ["componenta/image-converter" => "2.0.0"]]],
+                  ],
+                  "require" => [
+                      "componenta/image-compressor" => "2.0.0",
+                      "componenta/image-converter" => "2.0.0",
+                      "componenta/config" => "^4.0",
+                      "componenta/mimetype-detector" => "^2.0",
+                  ],
+              ];
+              file_put_contents(getenv("RUNNER_TEMP") . "/image-consumer/composer.json", json_encode($manifest, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR));
+          '
+          composer install --working-dir="$RUNNER_TEMP/image-consumer" --no-dev --no-interaction --prefer-dist
+          composer dump-autoload --working-dir="$RUNNER_TEMP/image-consumer" --optimize --strict-ambiguous
+      - name: Verify both providers and image pipeline
+        run: php tests/integration/coinstall.php "$RUNNER_TEMP/image-consumer/vendor/autoload.php"
