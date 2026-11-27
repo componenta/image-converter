@@ -74,6 +74,12 @@ final class GdProcessor
         if (imagesx($image) !== $width || imagesy($image) !== $height) {
             throw new ConversionException('Decoded dimensions differ from the image header.');
         }
+        if ($mime === 'image/jpeg') {
+            $image = self::orientJpeg($image, $raw);
+            if (imagesx($image) > $limits->maxWidth || imagesy($image) > $limits->maxHeight) {
+                throw new ConversionException('Oriented image dimensions exceed configured limits.');
+            }
+        }
         if ($target === 'image/jpeg' && $mime !== 'image/jpeg') {
             $image = self::flatten($image);
         } elseif ($target === 'image/webp' || $target === 'image/avif') {
@@ -116,6 +122,35 @@ final class GdProcessor
         };
 
         return $flag !== 0 && (imagetypes() & $flag) !== 0;
+    }
+
+    private static function orientJpeg(GdImage $image, string $raw): GdImage
+    {
+        $orientation = self::native(static fn(): int => JpegOrientation::read($raw));
+        if (in_array($orientation, [2, 5, 7], true)) {
+            if (!self::native(static fn() => imageflip($image, IMG_FLIP_HORIZONTAL))) {
+                throw new ConversionException('Failed to mirror JPEG orientation.');
+            }
+        } elseif ($orientation === 4) {
+            if (!self::native(static fn() => imageflip($image, IMG_FLIP_VERTICAL))) {
+                throw new ConversionException('Failed to mirror JPEG orientation.');
+            }
+        }
+        $angle = match ($orientation) {
+            3 => 180,
+            5, 8 => 90,
+            6, 7 => -90,
+            default => 0,
+        };
+        if ($angle === 0) {
+            return $image;
+        }
+        $rotated = self::native(static fn() => imagerotate($image, $angle, 0));
+        if (!$rotated instanceof GdImage) {
+            throw new ConversionException('Failed to rotate JPEG orientation.');
+        }
+
+        return $rotated;
     }
 
     private static function flatten(GdImage $source): GdImage
