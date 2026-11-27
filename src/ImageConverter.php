@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Componenta\Image;
 
+use Componenta\Detector\DetectorException;
 use Componenta\Detector\MimeTypeDetectorInterface;
+use Componenta\Image\Converter\Internal\SourceReader;
 use Psr\Http\Message\StreamInterface;
 
 final class ImageConverter
@@ -18,6 +20,7 @@ final class ImageConverter
     public function __construct(
         private readonly MimeTypeDetectorInterface $detector,
         iterable $converters = [],
+        private readonly ImageConversionLimits $limits = new ImageConversionLimits(),
     ) {
         foreach ($converters as $converter) {
             $this->addConverter($converter);
@@ -50,7 +53,12 @@ final class ImageConverter
             throw ConversionException::unsupportedTarget($targetType);
         }
 
-        $sourceMimeType = $this->detector->detectMimeType($source);
+        $source = SourceReader::read($source, $this->limits->maxInputBytes);
+        try {
+            $sourceMimeType = $this->detector->detectMimeType($source);
+        } catch (DetectorException $error) {
+            throw new ConversionException('Unable to detect source image MIME type.', previous: $error);
+        }
 
         if ($sourceMimeType === null) {
             throw ConversionException::undetectableSourceType();
@@ -72,9 +80,14 @@ final class ImageConverter
             return false;
         }
 
+        // A capability probe must not consume a one-shot stream.
+        if ($source instanceof StreamInterface && !$source->isSeekable()) {
+            return false;
+        }
         try {
+            $source = SourceReader::read($source, $this->limits->maxInputBytes);
             $sourceMimeType = $this->detector->detectMimeType($source);
-        } catch (\Throwable) {
+        } catch (DetectorException|ConversionException) {
             return false;
         }
 
