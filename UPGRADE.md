@@ -19,3 +19,5 @@
 - AVIF input with non-identity display transformations of the primary color item is rejected instead of silently dropping those transformations during re-encoding. Identity, unused and independent thumbnail properties remain accepted.
 
 - AVIF movie containers require the explicit still-image major brand `avif`; an ambiguous major brand can cause libavif to select a track and silently lose frames. The existing rejection of `avis` remains unchanged.
+
+- Conversion rejects 16-bit PNGs with a tRNS color key to avoid silent loss of distinct opaque pixels during GD's bit-depth reduction. Other 16-bit PNGs remain convertible at GD's reduced precision.

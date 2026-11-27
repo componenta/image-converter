@@ -66,7 +66,7 @@ final class GdProcessor
         if ($mime === 'image/jpeg') {
             JpegStructure::assertComplete($raw);
         }
-        self::assertStatic($raw, $mime);
+        self::assertStatic($raw, $mime, $info['bits'] ?? 8);
         if ($mime === 'image/png' && $target === 'image/png' && ($info['bits'] ?? 8) > 8) {
             throw new ConversionException('GD cannot preserve the bit depth of this PNG.');
         }
@@ -223,7 +223,7 @@ final class GdProcessor
         }
     }
 
-    private static function assertStatic(string $raw, string $mime): void
+    private static function assertStatic(string $raw, string $mime, int $bitDepth): void
     {
         if ($mime === 'image/png') {
             // APNG declares animation before the first IDAT.
@@ -237,6 +237,11 @@ final class GdProcessor
                 $type = substr($raw, $offset + 4, 4);
                 if ($type === 'acTL') {
                     throw new ConversionException('Animated PNG is not supported.');
+                }
+                if ($type === 'tRNS' && $bitDepth === 16) {
+                    // GD strips the low bytes before resolving the color key.
+                    // Distinct opaque samples can become transparent.
+                    throw new ConversionException('GD cannot preserve 16-bit PNG color-key transparency.');
                 }
                 if ($type === 'IDAT' || $type === 'IEND') {
                     break;
