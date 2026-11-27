@@ -75,3 +75,21 @@ if ($compressed->mimeType !== 'image/webp' || $decoded === false || imagesx($dec
 }
 
 echo "Co-installation, providers and PNG -> WebP -> WebP pipeline passed.", PHP_EOL;
+
+$jpeg = $converter->convert($png, 'jpeg', new ImageConversionOptions(quality: 95));
+$jpegPixels = imagecreatefromstring($jpeg->content);
+$opaquePng = $converter->convert($jpeg->content, 'png', new ImageConversionOptions(compressionLevel: 6));
+$recompressed = $compressor->compress($opaquePng->content, new ImageCompressionOptions(compressionLevel: 9));
+$pngPixels = imagecreatefromstring($recompressed->content);
+if ($jpegPixels === false || $pngPixels === false || ord($opaquePng->content[25]) !== 2
+    || $recompressed->mimeType !== 'image/png' || imagesx($pngPixels) !== 24 || imagesy($pngPixels) !== 8) {
+    throw new RuntimeException('Opaque JPEG-to-PNG integration failed.');
+}
+for ($y = 0; $y < 8; ++$y) {
+    for ($x = 0; $x < 24; ++$x) {
+        if (imagecolorat($jpegPixels, $x, $y) !== imagecolorat($pngPixels, $x, $y)) {
+            throw new RuntimeException('Lossless PNG round-trip changed decoded JPEG pixels.');
+        }
+    }
+}
+echo "PNG -> JPEG -> RGB PNG -> compressed PNG pipeline passed.", PHP_EOL;
