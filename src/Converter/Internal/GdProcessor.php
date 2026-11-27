@@ -184,12 +184,16 @@ final class GdProcessor
             // APNG declares animation before the first IDAT.
             $size = strlen($raw);
             for ($offset = 8; $offset <= $size - 12;) {
-                $length = unpack('N', substr($raw, $offset, 4))[1];
+                $header = unpack('Nlength', substr($raw, $offset, 4));
+                $length = $header['length'] ?? null;
+                if (!is_int($length) || $length < 0 || $length > $size - $offset - 12) {
+                    throw new ConversionException('Invalid PNG chunk length.');
+                }
                 $type = substr($raw, $offset + 4, 4);
                 if ($type === 'acTL') {
                     throw new ConversionException('Animated PNG is not supported.');
                 }
-                if ($type === 'IDAT' || $type === 'IEND' || $length > $size - $offset - 12) {
+                if ($type === 'IDAT' || $type === 'IEND') {
                     break;
                 }
                 $offset += $length + 12;
@@ -198,8 +202,9 @@ final class GdProcessor
             && substr($raw, 12, 4) === 'VP8X' && (ord($raw[20]) & 0x02) !== 0) {
             throw new ConversionException('Animated WebP is not supported.');
         } elseif ($mime === 'image/avif' && strlen($raw) >= 16 && substr($raw, 4, 4) === 'ftyp') {
-            $length = unpack('N', substr($raw, 0, 4))[1];
-            if ($length < 16 || $length > strlen($raw) || ($length - 16) % 4 !== 0) {
+            $header = unpack('Nlength', substr($raw, 0, 4));
+            $length = $header['length'] ?? null;
+            if (!is_int($length) || $length < 16 || $length > strlen($raw) || ($length - 16) % 4 !== 0) {
                 throw new ConversionException('Unsupported AVIF file type box.');
             }
             if (substr($raw, 8, 4) === 'avis') {

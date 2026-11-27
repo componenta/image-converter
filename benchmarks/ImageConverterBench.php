@@ -74,6 +74,10 @@ final class ImageConverterBench
         $pairs = [['jpeg', 'webp'], ['png', 'jpeg'], ['jpeg', 'png'], ['png', 'webp'], ['webp', 'avif'], ['avif', 'webp'], ['bmp', 'png']];
         foreach ($pairs as [$source, $target]) {
             foreach ([[1000, 1000], [2000, 2000], [4000, 3000]] as [$width, $height]) {
+                // A 12 MP uncompressed BMP exceeds the default 32 MiB input limit.
+                if ($source === 'bmp' && $width * $height > 10000000) {
+                    continue;
+                }
                 foreach ([false, true] as $stream) {
                     yield sprintf('%s-%s-%dx%d-%s', $source, $target, $width, $height, $stream ? 'stream' : 'bytes') => [
                         'source' => $source, 'target' => $target,

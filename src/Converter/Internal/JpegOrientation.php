@@ -11,6 +11,11 @@ final class JpegOrientation
 {
     public static function read(string $raw): int
     {
+        // No EXIF signature means no EXIF orientation to apply.
+        if (!str_contains($raw, "Exif\0\0")) {
+            return 1;
+        }
+
         // A bounded JPEG snapshot is already owned by the processor.
         // The EXIF reader requires a seekable stream and does not own it.
         $stream = fopen('php://temp', 'w+b');
