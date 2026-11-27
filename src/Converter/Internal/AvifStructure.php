@@ -20,24 +20,32 @@ final class AvifStructure
 
     public static function assertSupported(string $raw): void
     {
-        $hasFileType = false;
+        $majorBrand = null;
         $hasMeta = false;
+        $hasMovie = false;
         foreach (self::boxes($raw, 0, strlen($raw)) as [$type, $start, $end]) {
             if ($type === 'ftyp') {
-                if ($hasFileType) {
+                if ($majorBrand !== null) {
                     throw new ConversionException('Duplicate AVIF file type box.');
                 }
-                $hasFileType = true;
                 if ($end - $start < 8 || ($end - $start) % 4 !== 0) {
                     throw new ConversionException('Invalid AVIF file type box.');
                 }
-                if (substr($raw, $start, 4) === 'avis') {
+                $majorBrand = substr($raw, $start, 4);
+                if ($majorBrand === 'avis') {
                     throw new ConversionException('Animated AVIF is not supported.');
                 }
                 for ($offset = $start + 8; $offset < $end; $offset += 4) {
                     if (substr($raw, $offset, 4) === 'avis') {
                         throw new ConversionException('Animated AVIF is not supported.');
                     }
+                }
+            } elseif ($type === 'moov') {
+                $hasMovie = true;
+                // With a generic major brand, libavif's AUTO source can select
+                // tracks instead of the primary item, depending on box order.
+                if ($majorBrand !== null && $majorBrand !== 'avif') {
+                    throw new ConversionException('AVIF movie tracks require an explicit still-image major brand.');
                 }
             } elseif ($type === 'meta') {
                 if ($hasMeta) {
@@ -68,8 +76,11 @@ final class AvifStructure
                 }
             }
         }
-        if (!$hasFileType) {
+        if ($majorBrand === null) {
             throw new ConversionException('Missing AVIF file type box.');
+        }
+        if ($hasMovie && $majorBrand !== 'avif') {
+            throw new ConversionException('AVIF movie tracks require an explicit still-image major brand.');
         }
     }
 

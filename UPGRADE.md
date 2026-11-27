@@ -17,3 +17,5 @@
 - For image MIME types mapped in the default MIME catalog, result extensions must match that catalog. Unmapped custom image types can supply their own valid extension.
 
 - AVIF input with non-identity display transformations of the primary color item is rejected instead of silently dropping those transformations during re-encoding. Identity, unused and independent thumbnail properties remain accepted.
+
+- AVIF movie containers require the explicit still-image major brand `avif`; an ambiguous major brand can cause libavif to select a track and silently lose frames. The existing rejection of `avis` remains unchanged.
