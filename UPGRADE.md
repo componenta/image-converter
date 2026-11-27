@@ -13,3 +13,5 @@
 - Result objects reject empty bytes, non-image or parameterized MIME types, and invalid extensions. MIME and extension metadata are normalized to lowercase.
 
 - A failed seekable stream restoration now throws `ConversionStreamPositionRestoreException` from both operations and capability probes. It preserves both failure causes instead of silently returning false.
+
+- For image MIME types mapped in the default MIME catalog, result extensions must match that catalog. Unmapped custom image types can supply their own valid extension.

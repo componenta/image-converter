@@ -6,6 +6,7 @@ namespace Componenta\Image;
 
 use Componenta\Detector\Ext;
 use Componenta\Detector\MimeType;
+use Componenta\Detector\MimeMap;
 
 /** Image bytes with validated, normalized format metadata. */
 final class ConvertedImage
@@ -23,6 +24,10 @@ final class ConvertedImage
         if ($content === '' || $mime === null || !$mime->isImage()
             || $mime->parameters !== [] || $ext === null || str_starts_with($extension, '.')) {
             throw new ConversionException('Invalid image result metadata or empty content.');
+        }
+        $extensions = MimeMap::getDefaultMap()[$mime->value] ?? [];
+        if ($extensions !== [] && !in_array($ext->value, $extensions, true)) {
+            throw new ConversionException('Image result extension does not match its MIME type.');
         }
         $this->mimeType = $mime->value;
         $this->extension = $ext->value;

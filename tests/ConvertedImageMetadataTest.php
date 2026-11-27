@@ -26,3 +26,28 @@ test('image results reject empty bytes and malformed metadata', function (string
     ['bytes', 'image/png', 'foo\\bar'],
     ['bytes', 'image/png', 'foo:bar'],
 ]);
+
+test('known image types reject extensions that contradict the MIME catalog', function (string $mime, string $extension): void {
+    expect(fn() => new ConvertedImage('bytes', $mime, $extension))
+        ->toThrow(ConversionException::class, 'extension does not match');
+})->with([
+    ['image/png', 'jpg'],
+    ['image/png', 'png.php'],
+    ['image/jpeg', 'webp'],
+    ['image/pjpeg', 'png'],
+    ['image/x-png', 'jpeg'],
+    ['image/avif', 'heic'],
+    ['image/webp', 'php'],
+    ['image/tiff', 'gif'],
+]);
+
+test('known aliases and unmapped custom image types retain valid extensions', function (string $mime, string $extension, string $expected): void {
+    $result = new ConvertedImage('bytes', $mime, $extension);
+    expect($result->extension)->toBe($expected);
+})->with([
+    ['image/jpeg', 'JPE', 'jpe'],
+    ['image/pjpeg', 'jpeg', 'jpeg'],
+    ['image/x-png', 'PNG', 'png'],
+    ['image/tiff', 'tif', 'tif'],
+    ['image/x-componenta-test-format', 'ctf', 'ctf'],
+]);

@@ -21,7 +21,7 @@ $image = $converter->convert($source, 'webp', new ImageConversionOptions(quality
 $png = $converter->convert($jpegSource, 'png', new ImageConversionOptions(compressionLevel: 7));
 ```
 
-The source is raw bytes (not a filesystem path) or a PSR-7 `StreamInterface`. The result is `ConvertedImage` with read-only `content`, `mimeType`, `extension` and computed `size` in bytes. Results require nonempty content, a concrete image MIME type without parameters, and a valid extension without a leading dot. MIME and extension metadata are normalized to lowercase; the result object does not validate the encoded bytes or authorize a filesystem path.
+The source is raw bytes (not a filesystem path) or a PSR-7 `StreamInterface`. The result is `ConvertedImage` with read-only `content`, `mimeType`, `extension` and computed `size` in bytes. Results require nonempty content, a concrete image MIME type without parameters, and a valid extension without a leading dot. MIME and extension metadata are normalized to lowercase. For image MIME types with registered extensions, the extension must agree with the MIME Type Detector default catalog. Unmapped custom image types may declare their own valid extension. These checks do not validate the encoded bytes or authorize a filesystem path; applications still need a storage and serving policy.
 
 ## Formats and options
 
