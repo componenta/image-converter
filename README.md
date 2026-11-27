@@ -50,6 +50,8 @@ Default `ImageConversionLimits` values: 32 MiB input, 16,000,000 pixels, width a
 
 AVIF structural inspection rejects duplicate file-type, metadata and item-property containers and limits each item-property container to 32,767 properties (the largest addressable property index).
 
+Before native image-header parsing, built-in codecs require a recognized signature for an allowed raster source format. This prevents unrelated formats, such as compressed SWF, from reaching PHP's broader header parser. The signature check is not a full validation.
+
 These limits are not an absolute native-memory or CPU bound. Process isolation, upload validation and resource/time restrictions remain necessary for untrusted inputs.
 
 ## Image fidelity and errors

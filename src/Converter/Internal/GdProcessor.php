@@ -49,13 +49,20 @@ final class GdProcessor
         ?int $avifSpeed = null,
     ): string {
         $raw = SourceReader::read($source, $limits->maxInputBytes);
+        $signature = self::sourceSignature($raw);
+        if ($signature === null || !in_array($signature, $allowed, true)) {
+            throw new ConversionException('Unsupported source image signature.');
+        }
+        if (!self::supports($signature, $allowed, $target)) {
+            throw new ConversionException('Source or target image format is unsupported by this GD codec.');
+        }
         $info = self::native(static fn() => getimagesizefromstring($raw));
         if ($info === false) {
             throw new ConversionException('Unable to identify image dimensions and format.');
         }
         $mime = self::normalize($info['mime']);
-        if (!self::supports($mime, $allowed, $target)) {
-            throw new ConversionException('Source or target image format is unsupported by this GD codec.');
+        if ($mime !== $signature) {
+            throw new ConversionException('Source image format differs from its signature.');
         }
         $width = $info[0];
         $height = $info[1];
@@ -128,6 +135,60 @@ final class GdProcessor
         }
 
         return $encoded;
+    }
+
+    /**
+     * A narrow preflight, not a complete image detector. PHP's broad image
+     * header parser also handles formats such as compressed SWF, which can
+     * allocate decompressed data before returning an unsupported MIME type.
+     */
+    private static function sourceSignature(string $raw): ?string
+    {
+        return match (true) {
+            str_starts_with($raw, "\xff\xd8\xff") => 'image/jpeg',
+            str_starts_with($raw, "\x89PNG\r\n\x1a\n") => 'image/png',
+            str_starts_with($raw, 'RIFF') && substr($raw, 8, 4) === 'WEBP' => 'image/webp',
+            str_starts_with($raw, 'BM') => 'image/bmp',
+            self::hasAvifFileType($raw) => 'image/avif',
+            default => null,
+        };
+    }
+
+    private static function hasAvifFileType(string $raw): bool
+    {
+        // A malformed SWF must not become eligible merely by placing ftyp
+        // at offset four. PHP recognizes the CWS signature before BMFF.
+        if (strlen($raw) < 16 || substr($raw, 4, 4) !== 'ftyp' || str_starts_with($raw, 'CWS')) {
+            return false;
+        }
+
+        $size = unpack('Nsize', $raw, 0)['size'] ?? null;
+        $header = 8;
+        if ($size === 1) {
+            if (strlen($raw) < 24 || (unpack('Nhigh', $raw, 8)['high'] ?? null) !== 0) {
+                return false;
+            }
+            $size = unpack('Nsize', $raw, 12)['size'] ?? null;
+            $header = 16;
+        }
+        if (!is_int($size) || $size < $header + 8 || $size > strlen($raw) || ($size - $header) % 4 !== 0) {
+            return false;
+        }
+
+        // Only AVIF or AVIF sequence brands are eligible. The minor version
+        // field is not a brand; the sequence guard will reject avis later.
+        $major = substr($raw, $header, 4);
+        if ($major === 'avif' || $major === 'avis') {
+            return true;
+        }
+        for ($offset = $header + 8; $offset < $size; $offset += 4) {
+            $brand = substr($raw, $offset, 4);
+            if ($brand === 'avif' || $brand === 'avis') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static function available(string $mime): bool
