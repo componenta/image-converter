@@ -7,14 +7,14 @@ namespace Componenta\Image;
 use Componenta\Image\Converter\Internal\GdProcessor;
 use Psr\Http\Message\StreamInterface;
 
-final readonly class GdPngConverter implements ImageConverterInterface, ImageConversionTargetsProviderInterface
+final class GdPngConverter implements ImageConverterInterface, ImageConversionTargetsProviderInterface
 {
     /** @var list<string> */
     private const array SUPPORTED = ['image/jpeg', 'image/webp', 'image/avif', 'image/bmp'];
 
     public function __construct(
-        private int $defaultCompressionLevel = 6,
-        private ImageConversionLimits $limits = new ImageConversionLimits(),
+        private readonly int $defaultCompressionLevel = 6,
+        private readonly ImageConversionLimits $limits = new ImageConversionLimits(),
     ) {
         if ($defaultCompressionLevel < 0 || $defaultCompressionLevel > 9) {
             throw new ConversionException('PNG compression level must be between 0 and 9.');
