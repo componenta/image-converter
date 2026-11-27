@@ -71,3 +71,5 @@ composer bench
 ```
 
 PHPBench scenarios require a GD build with all built-in codecs. They use deterministic synthetic images at 1, 4 and 12 MP (subject to input limits), and compare raw bytes with streams. See [UPGRADE.md](UPGRADE.md) for migration.
+
+The `Compare performance` workflow compares v1.0.1 and the candidate on the same PHP 8.4 runner with equivalent codec settings, three isolated iterations per common case. It excludes conversions not supported by v1; stream measurements use 1 MP inputs. PHPBench reports PHP-managed peak memory, not total native RSS.

@@ -1,0 +1,48 @@
+name: Compare performance
+
+on:
+  push:
+    branches: ['refactor/image-processing-v2']
+    paths:
+      - '.github/workflows/benchmark-compare.yml'
+      - 'benchmarks/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      IMAGE_BENCH_COMPARE: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          ref: v1.0.1
+          path: .benchmark-baseline
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: gd, exif
+          coverage: none
+          tools: composer:v2
+      - name: Install candidate dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Install baseline dependencies
+        working-directory: .benchmark-baseline
+        run: |
+          composer require guzzlehttp/psr7:^3.6 --no-update --no-interaction
+          composer install --no-dev --prefer-dist --no-interaction
+      - name: Baseline v1.0.1
+        env:
+          IMAGE_BENCH_BASELINE: '1'
+        run: |
+          vendor/bin/phpbench run benchmarks/ImageConverterBench.php --bootstrap=.benchmark-baseline/vendor/autoload.php --report=aggregate --iterations=3 --revs=1
+      - name: Candidate v2
+        env:
+          IMAGE_BENCH_BASELINE: '0'
+        run: |
+          vendor/bin/phpbench run benchmarks/ImageConverterBench.php --report=aggregate --iterations=3 --revs=1

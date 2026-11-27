@@ -22,10 +22,16 @@ final class ImageConverterBench
 {
     private ImageConverter $service;
     private string $source;
+    private bool $baseline = false;
 
     /** @param array{source: string, target: string, width: int, height: int, stream: bool} $params */
     public function setUp(array $params): void
     {
+        $file = (new \ReflectionClass(ImageConverter::class))->getFileName();
+        $this->baseline = is_string($file) && str_contains($file, '/.benchmark-baseline/');
+        if ($this->baseline !== (getenv('IMAGE_BENCH_BASELINE') === '1')) {
+            throw new \RuntimeException('Benchmark resolved the wrong library version: ' . $file);
+        }
         $image = imagecreatetruecolor($params['width'], $params['height']);
         if ($image === false) {
             throw new \RuntimeException('Unable to allocate fixture.');
@@ -62,6 +68,12 @@ final class ImageConverterBench
     public function benchProcess(array $params): void
     {
         $source = $params['stream'] ? Utils::streamFor($this->source) : $this->source;
+        if ($this->baseline) {
+            // v1 maps quality=33 to PNG compression level 6.
+            $quality = $params['target'] === 'png' ? 33 : 80;
+            $this->service->convert($source, $params['target'], $quality);
+            return;
+        }
         $options = $params['target'] === 'png'
             ? new ImageConversionOptions(compressionLevel: 6)
             : new ImageConversionOptions(quality: 80);
@@ -72,13 +84,25 @@ final class ImageConverterBench
     public function cases(): iterable
     {
         $pairs = [['jpeg', 'webp'], ['png', 'jpeg'], ['jpeg', 'png'], ['png', 'webp'], ['webp', 'avif'], ['avif', 'webp'], ['bmp', 'png']];
+        $compare = getenv('IMAGE_BENCH_COMPARE') === '1';
         foreach ($pairs as [$source, $target]) {
+            if ($compare && $source === 'avif' && $target === 'webp') {
+                // AVIF -> WebP was not advertised by v1.0.1.
+                continue;
+            }
+
             foreach ([[1000, 1000], [2000, 2000], [4000, 3000]] as [$width, $height]) {
                 // A 12 MP uncompressed BMP exceeds the default 32 MiB input limit.
                 if ($source === 'bmp' && $width * $height > 10000000) {
                     continue;
                 }
+                if ($compare && $width === 4000 && !in_array($target, ['jpeg', 'png'], true)) {
+                    continue;
+                }
                 foreach ([false, true] as $stream) {
+                    if ($compare && $stream && $width !== 1000) {
+                        continue;
+                    }
                     yield sprintf('%s-%s-%dx%d-%s', $source, $target, $width, $height, $stream ? 'stream' : 'bytes') => [
                         'source' => $source, 'target' => $target,
                         'width' => $width, 'height' => $height, 'stream' => $stream,

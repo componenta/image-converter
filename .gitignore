@@ -2,3 +2,5 @@
 /composer.lock
 /.phpunit.cache/
 /.phpbench/
+
+/.benchmark-baseline/
