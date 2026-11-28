@@ -62,7 +62,13 @@ test('a non-progressing stream is rejected without invoking detection', function
     $codec = new GdJpegConverter();
     $service = new ImageConverter($detector);
     $service->addConverter($codec);
-    expect(fn() => $service->convert($stream, 'jpeg'))->toThrow(ConversionStreamExceptionInterface::class, 'no progress');
+    try {
+        $service->convert($stream, 'jpeg');
+        $this->fail('Expected a stream failure.');
+    } catch (ConversionStreamExceptionInterface $error) {
+        expect($error->getMessage())->toContain('no progress');
+        expect($error)->not->toBeInstanceOf(ConversionExceptionInterface::class);
+    }
 });
 
 test('ordinary read failure restores the seekable source', function (): void {

@@ -35,6 +35,23 @@ function converterFileFixture(string $bytes): string
     return $path;
 }
 
+function expectConverterDomainFailure(callable $operation, ?string $message = null): void
+{
+    try {
+        $operation();
+    } catch (ConversionExceptionInterface $error) {
+        expect($error)->not->toBeInstanceOf(ConversionFileExceptionInterface::class);
+        expect($error)->not->toBeInstanceOf(ConversionStreamExceptionInterface::class);
+        if ($message !== null) {
+            expect($error->getMessage())->toContain($message);
+        }
+
+        return;
+    }
+
+    throw new LogicException('Expected a conversion domain failure.');
+}
+
 test('file conversion uses the same format detection, options and bytes as ordinary conversion', function (): void {
     $image = imagecreatetruecolor(17, 13);
     imagefilledrectangle($image, 0, 0, 7, 12, imagecolorallocate($image, 80, 120, 200));
@@ -95,7 +112,7 @@ test('file input limits are enforced before detection', function (): void {
         $detector = $this->createMock(MimeTypeDetectorInterface::class);
         $detector->expects($this->never())->method('detectMimeType');
         $service = new ImageConverter($detector, [new GdJpegConverter()], new ImageConversionLimits(maxInputBytes: 65536));
-        expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionExceptionInterface::class, 'input byte limit');
+        expectConverterDomainFailure(fn() => $service->convertFile($path, 'jpeg'), 'input byte limit');
         expect(filesize($path))->toBe(65537);
     } finally {
         unlink($path);
@@ -148,7 +165,7 @@ test('unknown targets fail before opening a file', function (): void {
     $detector = $this->createMock(MimeTypeDetectorInterface::class);
     $detector->expects($this->never())->method('detectMimeType');
     $service = new ImageConverter($detector, [new GdJpegConverter()]);
-    expect(fn() => $service->convertFile('', 'unregistered'))->toThrow(ConversionExceptionInterface::class, 'No image converter is registered');
+    expectConverterDomainFailure(fn() => $service->convertFile('', 'unregistered'), 'No image converter is registered');
 });
 
 test('file conversion rejects a FIFO without blocking', function (): void {
@@ -199,7 +216,7 @@ test('file conversion enforces codec geometry and output limits', function (): v
     try {
         foreach ([new ImageConversionLimits(maxPixels: 5), new ImageConversionLimits(maxOutputBytes: 1)] as $limits) {
             $service = new ImageConverter(new FinfoDetector(), [new GdJpegConverter(limits: $limits)], $limits);
-            expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionExceptionInterface::class);
+            expectConverterDomainFailure(fn() => $service->convertFile($path, 'jpeg'));
         }
     } finally {
         unlink($path);
