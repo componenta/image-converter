@@ -119,7 +119,7 @@ final class ImageConverterTest extends TestCase
 
         $this->expectException(\TypeError::class);
 
-        $converter->addConverter(new ExplicitTargetConverter());
+        $converter->addConverter(new DirectOnlyConverter());
     }
 }
 
@@ -162,7 +162,7 @@ final class TargetAwareConverter implements ImageConverterInterface, ImageConver
     }
 }
 
-final readonly class DeclaredCustomConverter implements ImageConverterInterface, ImageConversionTargetProviderInterface
+final class DeclaredCustomConverter implements ImageConverterInterface, ImageConversionTargetProviderInterface
 {
     public string $targetMimeType { get => 'image/custom'; }
 
@@ -181,7 +181,7 @@ final readonly class DeclaredCustomConverter implements ImageConverterInterface,
     }
 }
 
-final readonly class ExplicitTargetConverter implements ImageConverterInterface
+final readonly class DirectOnlyConverter implements ImageConverterInterface
 {
     #[\Override]
     public function convert(string|StreamInterface $source, ?ImageConversionOptions $options = null): ConvertedImage

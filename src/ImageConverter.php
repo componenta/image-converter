@@ -40,6 +40,8 @@ final class ImageConverter
         $name = substr($format, 6);
         $targets = [$format, $name];
 
+        // Implementations can violate PHPDoc element types at runtime.
+        /** @var array<array-key, mixed> $aliases */
         $aliases = $converter->targetAliases;
         if (!array_is_list($aliases)) {
             throw new \InvalidArgumentException('Target aliases must be a list of short names.');
