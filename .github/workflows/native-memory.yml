@@ -1,6 +1,7 @@
 name: Native memory
 
 on:
+  workflow_call:
   push:
     branches: ['refactor/image-processing-v2']
     paths:
