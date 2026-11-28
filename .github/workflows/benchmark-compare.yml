@@ -8,6 +8,7 @@ on:
       - 'benchmarks/**'
       - 'src/**/GdProcessor.php'
       - 'src/**/JpegStructure.php'
+      - 'src/**/JpegOrientation.php'
       - 'src/**/AvifStructure.php'
   workflow_dispatch:
 

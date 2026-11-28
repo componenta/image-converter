@@ -81,3 +81,5 @@ The `Compare performance` workflow compares v1.0.1 and the candidate on the same
 ## License
 
 [MIT](LICENSE).
+
+JPEG orientation is read from the bounded APP1 TIFF payload; unrelated APP1 metadata such as XMP does not interfere with orientation detection.

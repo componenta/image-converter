@@ -12,18 +12,19 @@ final class JpegOrientation
     public static function read(string $raw): int
     {
         // Only an APP1 marker in the JPEG header can declare EXIF orientation.
-        if (!self::hasExifSegment($raw)) {
+        $tiff = self::exifPayload($raw);
+        if ($tiff === null) {
             return 1;
         }
 
-        // A bounded JPEG snapshot is already owned by the processor.
-        // The EXIF reader requires a seekable stream and does not own it.
-        $stream = fopen('php://temp', 'w+b');
+        // The APP1 TIFF payload is at most 65,527 bytes. Parse only that block,
+        // without unrelated XMP APP1 segments or the JPEG image data.
+        $stream = fopen('php://memory', 'w+b');
         if ($stream === false) {
             throw new ConversionException('Unable to open JPEG metadata stream.');
         }
         try {
-            if (fwrite($stream, $raw) !== strlen($raw) || !rewind($stream)) {
+            if (fwrite($stream, $tiff) !== strlen($tiff) || !rewind($stream)) {
                 throw new ConversionException('Unable to prepare JPEG metadata stream.');
             }
             $metadata = exif_read_data($stream, 'IFD0', true, false);
@@ -40,7 +41,7 @@ final class JpegOrientation
         }
     }
 
-    private static function hasExifSegment(string $raw): bool
+    private static function exifPayload(string $raw): ?string
     {
         $size = strlen($raw);
         // Skip SOI, then walk segment lengths without inspecting compressed pixels.
@@ -50,28 +51,28 @@ final class JpegOrientation
                 ++$offset;
             } while ($offset < $size && $raw[$offset] === "\xff");
             if ($offset >= $size) {
-                return false;
+                return null;
             }
             $marker = ord($raw[$offset++]);
             if ($marker === 0xda || $marker === 0xd9) {
-                return false;
+                return null;
             }
             if ($marker === 0x01 || ($marker >= 0xd0 && $marker <= 0xd7)) {
                 continue;
             }
             if ($size - $offset < 2) {
-                return false;
+                return null;
             }
             $length = ord($raw[$offset]) * 256 + ord($raw[$offset + 1]);
             if ($length < 2 || $length > $size - $offset) {
-                return false;
+                return null;
             }
             if ($marker === 0xe1 && $length >= 8 && substr($raw, $offset + 2, 6) === "Exif\0\0") {
-                return true;
+                return substr($raw, $offset + 8, $length - 8);
             }
             $offset += $length;
         }
 
-        return false;
+        return null;
     }
 }
