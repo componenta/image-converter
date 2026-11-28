@@ -23,3 +23,5 @@
 - Conversion rejects 16-bit PNGs with a tRNS color key to avoid silent loss of distinct opaque pixels during GD's bit-depth reduction. Other 16-bit PNGs remain convertible at GD's reduced precision.
 
 - WebP RIFF framing is checked through the entire declared container, including trailing metadata chunks and padding. Data outside the declared RIFF boundary remains permitted.
+
+- GD uses seven-bit internal alpha precision. PNG's lossless encoding does not guarantee exact preservation of every original eight-bit alpha sample through GD.
