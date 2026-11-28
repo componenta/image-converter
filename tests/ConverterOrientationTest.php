@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Tests;
+namespace Componenta\Image\Converter\Tests;
 
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Exception\ConversionException;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 use PHPUnit\Framework\TestCase;
 

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\Factory\ImageConverterFactory;
-use Componenta\Image\ImageConversionLimits;
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\Factory\ImageConverterFactory;
+use Componenta\Image\Converter\ImageConversionLimits;
+use Componenta\Image\Converter\Exception\ConversionException;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 use GuzzleHttp\Psr7\NoSeekStream;
 use GuzzleHttp\Psr7\Utils;
@@ -41,7 +41,7 @@ test('direct codec factory forwards the configured output limits', function (): 
     $container = $this->createMock(ContainerInterface::class);
     $container->method('has')->with(ImageConversionLimits::class)->willReturn(true);
     $container->method('get')->with(ImageConversionLimits::class)->willReturn($limits);
-    $codec = (new \Componenta\Image\Factory\GdJpegConverterFactory())($container);
+    $codec = (new \Componenta\Image\Converter\Factory\GdJpegConverterFactory())($container);
     $image = imagecreatetruecolor(3, 2);
     $source = EncodedOutput::capture(static fn(): bool => imagepng($image));
     expect(fn() => $codec->convert($source))->toThrow(ConversionException::class, 'output byte limit');

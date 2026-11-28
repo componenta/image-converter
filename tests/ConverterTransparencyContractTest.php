@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 
 function converterTransparencyFixture(string $kind): string

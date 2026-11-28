@@ -3,18 +3,18 @@
 declare(strict_types=1);
 
 use Componenta\Config\ConfigKey;
-use Componenta\Image\ConfigProvider;
-use Componenta\Image\CompressionExceptionInterface;
-use Componenta\Image\CompressionFileExceptionInterface;
-use Componenta\Image\ConversionExceptionInterface;
-use Componenta\Image\ConversionFileExceptionInterface;
-use Componenta\Image\Factory\ImageCompressorFactory;
-use Componenta\Image\Factory\ImageConverterFactory;
-use Componenta\Image\ImageCompressionOptions;
-use Componenta\Image\ImageCompressor;
-use Componenta\Image\ImageCompressorConfigProvider;
-use Componenta\Image\ImageConversionOptions;
-use Componenta\Image\ImageConverter;
+use Componenta\Image\Converter\ConfigProvider;
+use Componenta\Image\Compressor\Exception\CompressionExceptionInterface;
+use Componenta\Image\Compressor\Exception\CompressionFileExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionFileExceptionInterface;
+use Componenta\Image\Compressor\Factory\ImageCompressorFactory;
+use Componenta\Image\Converter\Factory\ImageConverterFactory;
+use Componenta\Image\Compressor\ImageCompressionOptions;
+use Componenta\Image\Compressor\ImageCompressor;
+use Componenta\Image\Compressor\ImageCompressorConfigProvider;
+use Componenta\Image\Converter\ImageConversionOptions;
+use Componenta\Image\Converter\ImageConverter;
 use Psr\Container\ContainerInterface;
 
 if (!isset($argv[1])) {

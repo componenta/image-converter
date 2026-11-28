@@ -1,5 +1,7 @@
 # Upgrading to 2.x
 
+- The package now has its own PSR-4 namespace, `Componenta\Image\Converter`. Update imports and DI configuration: codecs move to `Componenta\Image\Converter\Codec`, interfaces to `Componenta\Image\Converter\Contract`, exceptions (including exception interfaces) to `Componenta\Image\Converter\Exception`, and factories to `Componenta\Image\Converter\Factory`. The orchestrator, result, options, limits and config provider remain directly in the package namespace. No compatibility aliases are exported.
+
 - Require Componenta Config 4 and MIME Type Detector 2. Custom detectors return `?MimeType`, not a string. EXIF is now required.
 - Built-in GD codecs reject unsupported source formats, unavailable codecs, declared animation and input limits; constructor defaults are validated immediately.
 - PNG options use `compressionLevel: 0..9`, not `quality`. For the old mapping, use `9 - (int) round($oldQuality / 100 * 9)`.

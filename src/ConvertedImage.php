@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter;
+
+use Componenta\Image\Converter\Exception\ConversionException;
 
 use Componenta\Detector\Ext;
 use Componenta\Detector\MimeType;
@@ -14,7 +16,7 @@ final class ConvertedImage
     public readonly string $mimeType;
     public readonly string $extension;
 
-    /** @throws ConversionExceptionInterface */
+    /** @throws ConversionException */
     public function __construct(
         public readonly string $content,
         string $mimeType,

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Tests;
+namespace Componenta\Image\Converter\Tests;
 
-use Componenta\Image\ConvertedImage;
+use Componenta\Image\Converter\ConvertedImage;
 use PHPUnit\Framework\TestCase;
 
 final class ConvertedImageTest extends TestCase

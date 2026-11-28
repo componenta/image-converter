@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Factory;
+namespace Componenta\Image\Converter\Factory;
 
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\ImageConversionLimits;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\ImageConversionLimits;
 use Psr\Container\ContainerInterface;
 
 final readonly class GdAvifConverterFactory

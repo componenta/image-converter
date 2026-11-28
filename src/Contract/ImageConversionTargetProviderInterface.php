@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter\Contract;
+
+use Componenta\Image\Converter\ImageConverter;
 
 /** Describes the one fixed output format of a converter registered with ImageConverter. */
 interface ImageConversionTargetProviderInterface

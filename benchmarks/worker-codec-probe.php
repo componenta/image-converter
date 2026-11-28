@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Componenta\Detector\FinfoDetector;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\ImageConverter;
-use Componenta\Image\ImageConversionOptions;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\ImageConverter;
+use Componenta\Image\Converter\ImageConversionOptions;
 
 require __DIR__ . '/../vendor/autoload.php';
 

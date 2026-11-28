@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\Benchmarks\RssRegression;
+use Componenta\Image\Converter\Benchmarks\RssRegression;
 
 require_once __DIR__ . '/../benchmarks/RssRegression.php';
 

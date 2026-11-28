@@ -2,8 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter\Contract;
 
+use Componenta\Image\Converter\ImageConversionOptions;
+use Componenta\Image\Converter\ConvertedImage;
+use Componenta\Image\Converter\Exception\ConversionStreamExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
 use Psr\Http\Message\StreamInterface;
 
 /**

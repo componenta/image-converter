@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 use Componenta\Detector\FinfoDetector;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\ImageConverter;
-use Componenta\Image\ImageConversionOptions;
-use Componenta\Image\ImageConversionLimits;
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\ImageConverter;
+use Componenta\Image\Converter\ImageConversionOptions;
+use Componenta\Image\Converter\ImageConversionLimits;
+use Componenta\Image\Converter\Exception\ConversionException;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 use GuzzleHttp\Psr7\Utils;
 

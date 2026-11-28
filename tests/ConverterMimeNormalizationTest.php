@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
 
 test('source MIME normalization preserves case and horizontal whitespace but not control bytes', function (): void {
     foreach ([['image/jpeg', new GdPngConverter()], ['image/png', new GdJpegConverter()], ['image/webp', new GdPngConverter()], ['image/avif', new GdPngConverter()], ['image/bmp', new GdPngConverter()]] as [$mime, $codec]) {

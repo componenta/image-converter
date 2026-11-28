@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\ConversionException;
-use Componenta\Image\GdPngConverter;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Codec\GdPngConverter;
 
 // Independently encoded with libavif 1.2.1, 16x8 RGB test pattern, sRGB.
 // Display properties are real, associated BMFF properties, not byte-string markers.

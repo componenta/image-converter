@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\ImageConversionLimits;
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\ImageConversionLimits;
+use Componenta\Image\Converter\Exception\ConversionException;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 
 test('output capture retains exactly the configured limit without forwarding bytes', function (): void {

@@ -14,16 +14,18 @@ Requires PHP 8.4 or later within PHP 8.x, the `gd` and `exif` extensions, and th
 
 Documentation for version 2.x. [Upgrade guide](UPGRADE.md).
 
+Public classes live in `Componenta\Image\Converter`; codecs in `Componenta\Image\Converter\Codec`, contracts in `Componenta\Image\Converter\Contract`, exceptions in `Componenta\Image\Converter\Exception`, and factories in `Componenta\Image\Converter\Factory`.
+
 ## Quick start
 
 ```php
 use Componenta\Detector\FinfoDetector;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\ImageConverter;
-use Componenta\Image\ImageConversionOptions;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\ImageConverter;
+use Componenta\Image\Converter\ImageConversionOptions;
 
 $converter = new ImageConverter(new FinfoDetector(), [
     new GdJpegConverter(),
@@ -174,8 +176,8 @@ File failures are represented by `ConversionFileUnavailableException` (unresolva
 `ConversionConfigurationException` implements `ConversionExceptionInterface` and extends `InvalidArgumentException`. `ConversionStreamPositionRestoreExceptionInterface` extends `ConversionStreamExceptionInterface`: the stream position is no longer guaranteed, the original read failure is available in `readFailure`, and the restoration failure through `getPrevious()`. Unlike ordinary read failures, this failure is not suppressed by `canConvert()`.
 
 ```php
-use Componenta\Image\ConversionExceptionInterface;
-use Componenta\Image\ConversionFileExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionFileExceptionInterface;
 
 try {
     $image = $converter->convertFile('photo.png', 'webp');
@@ -231,7 +233,7 @@ When called through the orchestrator, a custom codec receives raw bytes rather t
 
 ## Container integration
 
-The `Componenta\Image\ConfigProvider` config provider registers `ImageConverter` and the four built-in codecs. After loading the configuration, resolve the service from a PSR-11 container:
+The `Componenta\Image\Converter\ConfigProvider` config provider registers `ImageConverter` and the four built-in codecs. After loading the configuration, resolve the service from a PSR-11 container:
 
 ```php
 $converter = $container->get(ImageConverter::class);

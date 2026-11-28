@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\ConversionException;
-use Componenta\Image\GdPngConverter;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Codec\GdPngConverter;
 
 test('direct codecs reject unsupported compressed formats before native header parsing', function (): void {
     // Small valid SWF header plus compressed padding. The fixture is generated

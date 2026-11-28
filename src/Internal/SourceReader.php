@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Componenta\Image\Converter\Internal;
 
-use Componenta\Image\ConversionException;
-use Componenta\Image\ConversionExceptionInterface;
-use Componenta\Image\ConversionStreamException;
-use Componenta\Image\ConversionStreamExceptionInterface;
-use Componenta\Image\ConversionStreamPositionRestoreException;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionStreamException;
+use Componenta\Image\Converter\Exception\ConversionStreamExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionStreamPositionRestoreException;
 use Psr\Http\Message\StreamInterface;
 
 /** @internal */
@@ -76,6 +76,7 @@ final class SourceReader
         }
     }
 
+    /** @throws ConversionException */
     private static function assertSize(string $source, int $maxBytes): void
     {
         if (strlen($source) > $maxBytes) {

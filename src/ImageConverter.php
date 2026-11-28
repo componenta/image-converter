@@ -2,8 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter;
 
+use Componenta\Image\Converter\Contract\ImageConverterInterface;
+use Componenta\Image\Converter\Contract\ImageConversionTargetProviderInterface;
+use Componenta\Image\Converter\Exception\ConversionStreamPositionRestoreExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionStreamExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionFileExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionConfigurationException;
 use Componenta\Detector\DetectorException;
 use Componenta\Detector\MimeTypeDetectorInterface;
 use Componenta\Detector\MimeType;
@@ -36,7 +44,7 @@ final class ImageConverter
     /**
      * @param iterable<ImageConverterInterface&ImageConversionTargetProviderInterface> $converters
      * @param ImageConversionLimits $limits Byte limits for the orchestrator; configure each codec's own geometry and byte limits.
-     * @throws ConversionExceptionInterface
+     * @throws ConversionConfigurationException
      */
     public function __construct(
         private readonly MimeTypeDetectorInterface $detector,
@@ -48,7 +56,7 @@ final class ImageConverter
         }
     }
 
-    /** @throws ConversionExceptionInterface */
+    /** @throws ConversionConfigurationException */
     public function addConverter(
         ImageConverterInterface&ImageConversionTargetProviderInterface $converter,
     ): void {

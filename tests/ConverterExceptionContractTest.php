@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\ConversionConfigurationException;
-use Componenta\Image\ConversionExceptionInterface;
-use Componenta\Image\ConversionFileExceptionInterface;
-use Componenta\Image\ConversionStreamExceptionInterface;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\ImageConversionLimits;
+use Componenta\Image\Converter\Exception\ConversionConfigurationException;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionFileExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionStreamExceptionInterface;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\ImageConversionLimits;
 
 test('invalid codec and resource configuration implements the domain contract', function (): void {
     foreach ([

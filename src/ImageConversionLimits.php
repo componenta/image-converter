@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter;
+
+use Componenta\Image\Converter\Exception\ConversionConfigurationException;
 
 /** Byte limits for orchestration and codecs; geometry limits for codecs. Not a native memory or CPU bound. */
 final readonly class ImageConversionLimits
 {
-    /** @throws ConversionExceptionInterface */
+    /** @throws ConversionConfigurationException */
     public function __construct(
         public int $maxInputBytes = 33554432,
         public int $maxPixels = 16000000,

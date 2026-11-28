@@ -2,13 +2,18 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter;
 
-use Componenta\Image\Factory\GdWebPConverterFactory;
-use Componenta\Image\Factory\GdAvifConverterFactory;
-use Componenta\Image\Factory\GdJpegConverterFactory;
-use Componenta\Image\Factory\GdPngConverterFactory;
-use Componenta\Image\Factory\ImageConverterFactory;
+use Componenta\Image\Converter\Contract\ImageConverterInterface;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\Factory\GdWebPConverterFactory;
+use Componenta\Image\Converter\Factory\GdAvifConverterFactory;
+use Componenta\Image\Converter\Factory\GdJpegConverterFactory;
+use Componenta\Image\Converter\Factory\GdPngConverterFactory;
+use Componenta\Image\Converter\Factory\ImageConverterFactory;
 
 class ConfigProvider extends \Componenta\Config\ConfigProvider
 {

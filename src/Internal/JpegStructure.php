@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Image\Converter\Internal;
 
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionException;
 
 /** @internal */
 final class JpegStructure
@@ -14,6 +14,7 @@ final class JpegStructure
      * payloads (including EXIF thumbnails) may contain arbitrary marker bytes.
      * This is a structural check, not a full entropy/metadata validator.
      */
+    /** @throws ConversionException */
     public static function assertComplete(string $raw): void
     {
         $size = strlen($raw);

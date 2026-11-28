@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Tests;
+namespace Componenta\Image\Converter\Tests;
 
-use Componenta\Image\ConversionException;
-use Componenta\Image\ImageConversionLimits;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\GdJpegConverter;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\ImageConversionLimits;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 use PHPUnit\Framework\TestCase;
 

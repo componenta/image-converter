@@ -2,8 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter\Codec;
 
+use Componenta\Image\Converter\Contract\ImageConverterInterface;
+use Componenta\Image\Converter\Contract\ImageConversionTargetProviderInterface;
+use Componenta\Image\Converter\ImageConversionOptions;
+use Componenta\Image\Converter\ImageConversionLimits;
+use Componenta\Image\Converter\ConvertedImage;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionConfigurationException;
 use Componenta\Image\Converter\Internal\GdProcessor;
 use Psr\Http\Message\StreamInterface;
 
@@ -12,7 +19,7 @@ final class GdPngConverter implements ImageConverterInterface, ImageConversionTa
     /** @var list<string> */
     private const array SUPPORTED = ['image/jpeg', 'image/webp', 'image/avif', 'image/bmp'];
 
-    /** @throws ConversionExceptionInterface */
+    /** @throws ConversionConfigurationException */
     public function __construct(
         private readonly int $defaultCompressionLevel = 6,
         private readonly ImageConversionLimits $limits = new ImageConversionLimits(),
@@ -31,6 +38,7 @@ final class GdPngConverter implements ImageConverterInterface, ImageConversionTa
         get => [];
     }
 
+    /** @inheritDoc */
     #[\Override]
     public function convert(
         string|StreamInterface $source,

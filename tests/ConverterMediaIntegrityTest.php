@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\ConversionException;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\GdPngConverter;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 
 test('rejects animated PNG rather than losing frames', function (): void {

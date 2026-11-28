@@ -14,16 +14,18 @@ composer require componenta/image-converter
 
 Документация для версии 2.x. [Переход с предыдущей версии](UPGRADE.md).
 
+Публичные классы находятся в `Componenta\Image\Converter`; обработчики — в `Componenta\Image\Converter\Codec`, контракты — в `Componenta\Image\Converter\Contract`, исключения — в `Componenta\Image\Converter\Exception`. Фабрики находятся в `Componenta\Image\Converter\Factory`.
+
 ## Быстрый старт
 
 ```php
 use Componenta\Detector\FinfoDetector;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\ImageConverter;
-use Componenta\Image\ImageConversionOptions;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\ImageConverter;
+use Componenta\Image\Converter\ImageConversionOptions;
 
 $converter = new ImageConverter(new FinfoDetector(), [
     new GdJpegConverter(),
@@ -174,8 +176,8 @@ $converter = new ImageConverter(
 `ConversionConfigurationException` реализует `ConversionExceptionInterface` и наследует `InvalidArgumentException`. `ConversionStreamPositionRestoreExceptionInterface` наследует `ConversionStreamExceptionInterface`: позиция потока не гарантирована, исходная ошибка чтения доступна в `readFailure`, ошибка восстановления — через `getPrevious()`. В отличие от обычных ошибок чтения, эта ошибка не подавляется методом `canConvert()`.
 
 ```php
-use Componenta\Image\ConversionExceptionInterface;
-use Componenta\Image\ConversionFileExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionFileExceptionInterface;
 
 try {
     $image = $converter->convertFile('photo.png', 'webp');
@@ -231,7 +233,7 @@ interface ImageConversionTargetProviderInterface
 
 ## Интеграция с контейнером зависимостей
 
-Поставщик конфигурации `Componenta\Image\ConfigProvider` регистрирует `ImageConverter` и четыре встроенных обработчика. После загрузки конфигурации получите сервис из контейнера PSR-11:
+Поставщик конфигурации `Componenta\Image\Converter\ConfigProvider` регистрирует `ImageConverter` и четыре встроенных обработчика. После загрузки конфигурации получите сервис из контейнера PSR-11:
 
 ```php
 $converter = $container->get(ImageConverter::class);

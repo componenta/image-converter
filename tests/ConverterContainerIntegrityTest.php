@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\ConversionException;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdJpegConverter;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 
 function converterContainerFixture(string $format, bool $progressive = false): string

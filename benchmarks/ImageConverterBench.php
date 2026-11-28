@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Benchmarks;
+namespace Componenta\Image\Converter\Benchmarks;
 
 use Componenta\Detector\FinfoDetector;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\ImageConverter;
-use Componenta\Image\ImageConversionOptions;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\ImageConverter;
+use Componenta\Image\Converter\ImageConversionOptions;
 use GuzzleHttp\Psr7\Utils;
 use PhpBench\Attributes as Bench;
 
@@ -20,14 +20,24 @@ use PhpBench\Attributes as Bench;
 #[Bench\Iterations(3)]
 final class ImageConverterBench
 {
-    private ImageConverter $service;
+    private object $service;
+    /** @var class-string */
+    private string $optionsClass;
     private string $source;
     private bool $baseline = false;
 
     /** @param array{source: string, target: string, width: int, height: int, stream: bool} $params */
     public function setUp(array $params): void
     {
-        $file = (new \ReflectionClass(ImageConverter::class))->getFileName();
+        $current = class_exists(ImageConverter::class);
+        $serviceClass = $current ? ImageConverter::class : \Componenta\Image\ImageConverter::class;
+        $optionsClass = $current ? ImageConversionOptions::class : \Componenta\Image\ImageConversionOptions::class;
+        $jpegClass = $current ? GdJpegConverter::class : \Componenta\Image\GdJpegConverter::class;
+        $pngClass = $current ? GdPngConverter::class : \Componenta\Image\GdPngConverter::class;
+        $webpClass = $current ? GdWebPConverter::class : \Componenta\Image\GdWebPConverter::class;
+        $avifClass = $current ? GdAvifConverter::class : \Componenta\Image\GdAvifConverter::class;
+        $this->optionsClass = $optionsClass;
+        $file = (new \ReflectionClass($serviceClass))->getFileName();
         $this->baseline = is_string($file) && str_contains($file, '/.benchmark-baseline/');
         if ($this->baseline !== (getenv('IMAGE_BENCH_BASELINE') === '1')) {
             throw new \RuntimeException('Benchmark resolved the wrong library version: ' . $file);
@@ -63,8 +73,8 @@ final class ImageConverterBench
         } finally {
             ob_end_clean();
         }
-        $this->service = new ImageConverter(new FinfoDetector(), [
-            new GdJpegConverter(), new GdPngConverter(), new GdWebPConverter(), new GdAvifConverter(),
+        $this->service = new $serviceClass(new FinfoDetector(), [
+            new $jpegClass(), new $pngClass(), new $webpClass(), new $avifClass(),
         ]);
     }
 
@@ -72,6 +82,7 @@ final class ImageConverterBench
     public function benchProcess(array $params): void
     {
         $source = $params['stream'] ? Utils::streamFor($this->source) : $this->source;
+        $optionsClass = $this->optionsClass;
         if ($this->baseline) {
             // v1 maps quality=33 to PNG compression level 6.
             $quality = $params['target'] === 'png' ? 33 : 80;
@@ -79,8 +90,8 @@ final class ImageConverterBench
             return;
         }
         $options = $params['target'] === 'png'
-            ? new ImageConversionOptions(compressionLevel: 6)
-            : new ImageConversionOptions(quality: 80);
+            ? new $optionsClass(compressionLevel: 6)
+            : new $optionsClass(quality: 80);
         $this->service->convert($source, $params['target'], $options);
     }
 

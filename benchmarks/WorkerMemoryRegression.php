@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Benchmarks;
+namespace Componenta\Image\Converter\Benchmarks;
 
 /** Distinguish persistent library growth from growth reproduced by native GD. */
 final class WorkerMemoryRegression

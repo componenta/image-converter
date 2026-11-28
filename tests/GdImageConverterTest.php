@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Tests;
+namespace Componenta\Image\Converter\Tests;
 
 use Componenta\Detector\FinfoDetector;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
 use PHPUnit\Framework\TestCase;
 
 final class GdImageConverterTest extends TestCase

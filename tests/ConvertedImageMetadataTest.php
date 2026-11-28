@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\ConvertedImage;
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\ConvertedImage;
+use Componenta\Image\Converter\Exception\ConversionException;
 
 test('image results normalize valid format metadata', function (): void {
     $result = new ConvertedImage('bytes', 'IMAGE/JPEG', 'JPG');

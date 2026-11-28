@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Componenta\Image\Converter\Internal;
 
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionException;
 
 /** Bounded still-image RIFF framing check (RFC 9649, sections 2.3–2.7), not a bitstream validator. @internal */
 final class WebpStructure
 {
+    /** @throws ConversionException */
     public static function assertStatic(string $raw): void
     {
         $size = strlen($raw);

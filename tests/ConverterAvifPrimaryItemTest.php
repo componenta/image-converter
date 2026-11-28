@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\ConversionException;
-use Componenta\Image\GdPngConverter;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Codec\GdPngConverter;
 
 // Two independently encoded AV1 image items, with a thmb reference 2 -> 1.
 // libavif 1.2.1 decodes the primary item as 32x16. Only the associated irot

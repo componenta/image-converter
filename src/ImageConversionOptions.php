@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter;
+
+use Componenta\Image\Converter\Exception\ConversionException;
 
 final readonly class ImageConversionOptions
 {
-    /** @throws ConversionExceptionInterface */
+    /** @throws ConversionException */
     public function __construct(
         public ?int $quality = null,
         public ?int $compressionLevel = null,

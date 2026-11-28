@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
 
 test('grayscale PNG color-key transparency is preserved at every supported input depth', function (int $depth, string $fixture, string $target): void {
     $source = base64_decode($fixture, true);

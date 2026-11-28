@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Componenta\Image\Converter\Internal;
 
-use Componenta\Image\ConversionException;
-use Componenta\Image\ConversionExceptionInterface;
-use Componenta\Image\ConversionFileExceptionInterface;
-use Componenta\Image\ConversionFileReadException;
-use Componenta\Image\ConversionFileUnavailableException;
-use Componenta\Image\ConversionInvalidFileException;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionFileExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionFileReadException;
+use Componenta\Image\Converter\Exception\ConversionFileUnavailableException;
+use Componenta\Image\Converter\Exception\ConversionInvalidFileException;
 
 /** @internal */
 final class FileReader
@@ -18,7 +17,7 @@ final class FileReader
      * Read a caller-authorized regular file, bounded even if it grows.
      *
      * @throws ConversionFileExceptionInterface
-     * @throws ConversionExceptionInterface If the input byte limit is exceeded.
+     * @throws ConversionException If the input byte limit is exceeded.
      */
     public static function read(string $path, int $maxBytes): string
     {
@@ -79,6 +78,7 @@ final class FileReader
         }
     }
 
+    /** @throws ConversionFileExceptionInterface */
     private static function resolve(string $path): string
     {
         try {

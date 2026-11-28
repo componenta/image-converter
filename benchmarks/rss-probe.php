@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Componenta\Detector\FinfoDetector;
-use Componenta\Image\GdJpegConverter;
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\GdAvifConverter;
-use Componenta\Image\ImageConverter;
-use Componenta\Image\ImageConversionOptions;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
+use Componenta\Image\Converter\ImageConverter;
+use Componenta\Image\Converter\ImageConversionOptions;
 
 if (($argv[1] ?? '') === 'fixture') {
     [, , $path, $format, $width, $height] = $argv;
@@ -63,7 +63,14 @@ if (($argv[1] ?? '') !== 'run' || count($argv) !== 6) {
 [, , $autoload, $path, $target, $version] = $argv;
 require $autoload;
 
-$file = (new ReflectionClass(ImageConverter::class))->getFileName();
+$current = class_exists(ImageConverter::class);
+$serviceClass = $current ? ImageConverter::class : \Componenta\Image\ImageConverter::class;
+$optionsClass = $current ? ImageConversionOptions::class : \Componenta\Image\ImageConversionOptions::class;
+$jpegClass = $current ? GdJpegConverter::class : \Componenta\Image\GdJpegConverter::class;
+$pngClass = $current ? GdPngConverter::class : \Componenta\Image\GdPngConverter::class;
+$webpClass = $current ? GdWebPConverter::class : \Componenta\Image\GdWebPConverter::class;
+$avifClass = $current ? GdAvifConverter::class : \Componenta\Image\GdAvifConverter::class;
+$file = (new ReflectionClass($serviceClass))->getFileName();
 $baseline = is_string($file) && str_contains($file, '/.benchmark-baseline/');
 $actualVersion = match (true) {
     $baseline => 'v1',
@@ -78,8 +85,8 @@ $source = file_get_contents($path);
 if ($source === false) {
     throw new RuntimeException('Unable to read fixture.');
 }
-$service = new ImageConverter(new FinfoDetector(), [
-    new GdJpegConverter(), new GdPngConverter(), new GdWebPConverter(), new GdAvifConverter(),
+$service = new $serviceClass(new FinfoDetector(), [
+    new $jpegClass(), new $pngClass(), new $webpClass(), new $avifClass(),
 ]);
 $started = hrtime(true);
 if ($baseline) {
@@ -87,8 +94,8 @@ if ($baseline) {
     $result = $service->convert($source, $target, $quality);
 } else {
     $options = $target === 'png'
-        ? new ImageConversionOptions(compressionLevel: 6)
-        : new ImageConversionOptions(quality: 80);
+        ? new $optionsClass(compressionLevel: 6)
+        : new $optionsClass(quality: 80);
     $result = $service->convert($source, $target, $options);
 }
 $elapsed = (hrtime(true) - $started) / 1e6;

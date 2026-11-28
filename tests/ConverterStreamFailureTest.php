@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 use Componenta\Detector\MimeType;
 use Componenta\Detector\MimeTypeDetectorInterface;
-use Componenta\Image\ConversionExceptionInterface;
-use Componenta\Image\ConversionStreamExceptionInterface;
-use Componenta\Image\ConversionStreamPositionRestoreExceptionInterface;
-use Componenta\Image\ImageConverter;
-use Componenta\Image\GdJpegConverter;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionStreamExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionStreamPositionRestoreExceptionInterface;
+use Componenta\Image\Converter\ImageConverter;
+use Componenta\Image\Converter\Codec\GdJpegConverter;
 use Psr\Http\Message\StreamInterface;
 
 test('a restoration failure is never hidden by the capability probe', function (bool $probe, bool $readFails): void {

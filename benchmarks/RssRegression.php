@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Benchmarks;
+namespace Componenta\Image\Converter\Benchmarks;
 
 /** Compare three independent process measurements against a pinned v2 reference. */
 final class RssRegression

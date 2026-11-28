@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image\Tests;
+namespace Componenta\Image\Converter\Tests;
 
 use Componenta\Detector\MimeType;
 use Componenta\Detector\MimeTypeDetectorInterface;
-use Componenta\Image\ConvertedImage;
-use Componenta\Image\ConversionException;
-use Componenta\Image\ImageConversionTargetProviderInterface;
-use Componenta\Image\ImageConversionOptions;
-use Componenta\Image\ImageConverter;
-use Componenta\Image\ImageConverterInterface;
+use Componenta\Image\Converter\ConvertedImage;
+use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Contract\ImageConversionTargetProviderInterface;
+use Componenta\Image\Converter\ImageConversionOptions;
+use Componenta\Image\Converter\ImageConverter;
+use Componenta\Image\Converter\Contract\ImageConverterInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;
 

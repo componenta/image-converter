@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter\Exception;
 
 /**
  * Thrown when image conversion fails.

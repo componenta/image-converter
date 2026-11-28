@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Image\Converter\Internal;
 
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionException;
 
 /** @internal */
 final class JpegOrientation

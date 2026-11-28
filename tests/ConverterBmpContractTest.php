@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\GdPngConverter;
-use Componenta\Image\ImageConversionOptions;
+use Componenta\Image\Converter\Codec\GdPngConverter;
+use Componenta\Image\Converter\ImageConversionOptions;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 use GuzzleHttp\Psr7\Utils;
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Componenta\Image\Converter\Internal;
 
-use Componenta\Image\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionException;
 use Generator;
 
 /**
@@ -18,6 +18,7 @@ final class AvifStructure
     // ipma has at most 15 bits for a nonzero property index.
     private const int MAX_PROPERTY_COUNT = 0x7fff;
 
+    /** @throws ConversionException */
     public static function assertSupported(string $raw): void
     {
         $majorBrand = null;

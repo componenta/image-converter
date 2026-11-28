@@ -20,12 +20,12 @@
     },
     "autoload": {
         "psr-4": {
-            "Componenta\\Image\\": "src/"
+            "Componenta\\Image\\Converter\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Componenta\\Image\\Tests\\": "tests/"
+            "Componenta\\Image\\Converter\\Tests\\": "tests/"
         }
     },
     "scripts": {
@@ -46,7 +46,7 @@
     "extra": {
         "componenta": {
             "config-providers": [
-                "Componenta\\Image\\ConfigProvider"
+                "Componenta\\Image\\Converter\\ConfigProvider"
             ]
         }
     },

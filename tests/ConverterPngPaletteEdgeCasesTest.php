@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\GdWebPConverter;
-use Componenta\Image\GdAvifConverter;
+use Componenta\Image\Converter\Codec\GdWebPConverter;
+use Componenta\Image\Converter\Codec\GdAvifConverter;
 
 // Independently generated PNG chunks, packed samples and CRCs. Expectations
 // come from the original sample values and tRNS table, not a GD round trip.

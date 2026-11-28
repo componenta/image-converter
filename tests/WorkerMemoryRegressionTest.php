@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Componenta\Image\Benchmarks\WorkerMemoryRegression;
+use Componenta\Image\Converter\Benchmarks\WorkerMemoryRegression;
 
 require_once __DIR__ . '/../benchmarks/WorkerMemoryRegression.php';
 

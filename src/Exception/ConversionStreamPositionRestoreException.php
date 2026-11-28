@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Componenta\Image;
+namespace Componenta\Image\Converter\Exception;
 
 /** The original position could not be restored; the caller must not reuse the stream blindly. */
 final class ConversionStreamPositionRestoreException extends ConversionStreamException implements ConversionStreamPositionRestoreExceptionInterface
