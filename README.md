@@ -85,7 +85,11 @@ public array $targetMimeTypes { get; }
 
 `targetMimeTypes` returns unique registered canonical MIME types in registration order. The read-only property excludes aliases and reflects later registrations; an empty registry returns `[]`.
 
-`canConvert()` checks routing and the input byte limit, not full image validity or successful processing. A registered target in `targetMimeTypes` does not guarantee native encoder availability.
+`canConvert()` is a preflight check, for example when enabling an operation in a user interface. It reads bytes or a stream, detects the MIME type, and checks whether a converter is registered for the requested target and supports the source. It returns `false` if the target is unregistered, no suitable codec is available, the source cannot be read or detected, or the input byte limit is exceeded. Non-seekable streams are not consumed. A positive result does not guarantee success: image dimensions, integrity, options and output limits are checked during processing. A target listed in `targetMimeTypes` does not guarantee native encoder availability.
+
+`supports()` is a codec-level check for a known source MIME type. For example, `$codec->supports('image/png')` checks format support and required GD codec availability without reading image data. The orchestrator calls `supports()` itself when selecting a codec.
+
+Do not call `canConvert()` routinely before `convert()` or `convertFile()`; the operation performs its own checks. A preflight duplicates source reading and MIME detection.
 
 `convertFile()` reads a local regular file within `maxInputBytes`, closes it and returns `ConvertedImage` without modifying the source. URLs, stream wrappers and special files are unsupported; symlinks to regular files are allowed. The caller is responsible for path authorization.
 
@@ -105,7 +109,7 @@ if ($codec->supports('image/png')) {
 }
 ```
 
-All built-in codecs implement `ImageConverterInterface`. `supports(string $mimeType): bool` checks source MIME support and required GD codec availability. Set constructor defaults with `defaultQuality` for JPEG, WebP and AVIF or `defaultCompressionLevel` for PNG. All codecs accept `limits`.
+All built-in codecs implement `ImageConverterInterface`. Set constructor defaults with `defaultQuality` for JPEG, WebP and AVIF or `defaultCompressionLevel` for PNG. All codecs accept `limits`.
 
 ### `ImageConversionOptions`
 
@@ -157,9 +161,17 @@ Limits are not absolute bounds on native memory or processing time. For untruste
 
 ## Errors
 
-- `ConversionException` — read failures, unsupported formats or options, invalid images, exceeded limits and processing failures.
+- `ConversionException` — missing or unreadable files, invalid paths, read failures, unsupported formats or options, invalid images, exceeded limits and processing failures. `convertFile()` uses this exception for file errors as well; a caught underlying PHP error is available through `getPrevious()`. Missing and unreadable files do not have separate exception types.
 - `ConversionStreamPositionRestoreException` — stream position could not be restored; a subtype of the above, also possible from `canConvert()`. The original read failure is available in `readFailure` and the restoration error through `getPrevious()`.
 - `InvalidArgumentException` — invalid resource limits or invalid/conflicting target registration.
+
+```php
+try {
+    $image = $converter->convertFile('photo.png', 'webp');
+} catch (\Componenta\Image\ConversionException $error) {
+    // Handle a file read or conversion failure.
+}
+```
 
 ## Image processing behavior
 
