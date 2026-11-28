@@ -34,6 +34,8 @@ The source is raw bytes (not a filesystem path) or a PSR-7 `StreamInterface`. Th
 
 Same-format operations belong to the image-compressor package.
 
+The read-only virtual property `$converter->targetMimeTypes` returns the unique registered canonical output MIME types in registration order (for example `['image/jpeg', 'image/png']`). An empty registry returns `[]`. The list reflects subsequent successful registrations and excludes aliases. It describes registration, not native codec availability or source compatibility; use `canConvert()` for a specific source.
+
 Actual codec availability depends on the GD build. `supports()` reports the supported source MIME types and available native codecs. `canConvert($source, 'webp')` checks routing and input-byte limits, not complete image validity.
 
 - `quality`: JPEG, WebP and AVIF, integer 0–100.

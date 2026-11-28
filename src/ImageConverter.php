@@ -16,6 +16,23 @@ final class ImageConverter
     private array $converters = [];
 
     /**
+     * Registered canonical target MIME types, in registration order.
+     * Does not probe codec availability or inspect any source image.
+     *
+     * @var list<string>
+     */
+    public array $targetMimeTypes {
+        get {
+            $types = [];
+            foreach ($this->converters as $registration) {
+                $types[$registration['format']] = true;
+            }
+
+            return array_keys($types);
+        }
+    }
+
+    /**
      * @param iterable<ImageConverterInterface&ImageConversionTargetProviderInterface> $converters
      * @param ImageConversionLimits $limits Byte limits for the orchestrator; configure each codec's own geometry and byte limits.
      */

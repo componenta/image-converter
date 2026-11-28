@@ -25,3 +25,5 @@
 - WebP RIFF framing is checked through the entire declared container, including trailing metadata chunks and padding. Data outside the declared RIFF boundary remains permitted.
 
 - GD uses seven-bit internal alpha precision. PNG's lossless encoding does not guarantee exact preservation of every original eight-bit alpha sample through GD.
+
+- `ImageConverter::$targetMimeTypes` exposes registered canonical target MIME types (unique, ordered, read-only); it does not probe codec availability.

@@ -144,3 +144,64 @@ test('constructor and addConverter require both interfaces but direct codec use 
     expect(fn() => registrationService([$codec]))->toThrow(TypeError::class);
     expect((new ReflectionMethod(ImageConverter::class, 'addConverter'))->getNumberOfParameters())->toBe(1);
 });
+
+
+test('registered target MIME types are empty before registration and follow registration order', function (): void {
+    $service = registrationService();
+    expect($service->targetMimeTypes)->toBe([]);
+    $first = new RegistrationCodec('IMAGE/X-SPECIAL', ['special', '.other', '123']);
+    $service->addConverter($first);
+    expect($service->targetMimeTypes)->toBe(['image/x-special']);
+    $service->addConverter(new RegistrationCodec('image/pjpeg', ['jpg']));
+    $service->addConverter(new RegistrationCodec('image/x-png'));
+    expect($service->targetMimeTypes)->toBe(['image/x-special', 'image/jpeg', 'image/png']);
+    $service->addConverter($first);
+    expect($service->targetMimeTypes)->toBe(['image/x-special', 'image/jpeg', 'image/png']);
+});
+
+test('constructor exposes canonical targets without aliases and does not expose mutable registry state', function (): void {
+    $service = registrationService([
+        new GdJpegConverter(),
+        new GdPngConverter(),
+        new RegistrationCodec('image/x-special', ['special']),
+    ]);
+    $snapshot = $service->targetMimeTypes;
+    expect($snapshot)->toBe(['image/jpeg', 'image/png', 'image/x-special']);
+    $snapshot[] = 'image/x-other';
+    expect($service->targetMimeTypes)->toBe(['image/jpeg', 'image/png', 'image/x-special']);
+    expect(function () use ($service): void {
+        $service->targetMimeTypes = [];
+    })->toThrow(Error::class);
+});
+
+test('target listing is unchanged by failed registrations and later provider mutation', function (): void {
+    $codec = new RegistrationCodec('image/x-special', ['shared']);
+    $service = registrationService([$codec]);
+    expect(fn() => $service->addConverter(new RegistrationCodec('image/x-other', ['shared'])))
+        ->toThrow(InvalidArgumentException::class);
+    $codec->targetMimeType = 'image/x-other';
+    expect($service->targetMimeTypes)->toBe(['image/x-special']);
+    expect(fn() => $service->addConverter($codec))->toThrow(InvalidArgumentException::class);
+    expect($service->targetMimeTypes)->toBe(['image/x-special']);
+});
+
+test('target discovery does not call the detector or test native codec availability', function (): void {
+    $detector = $this->createMock(MimeTypeDetectorInterface::class);
+    $detector->expects($this->never())->method('detectMimeType');
+    $codec = new class implements ImageConverterInterface, ImageConversionTargetProviderInterface {
+        public string $targetMimeType { get => 'image/x-unavailable'; }
+        public array $targetAliases { get => ['unavailable']; }
+
+        public function supports(string $mimeType): bool
+        {
+            throw new LogicException('Availability must not be probed.');
+        }
+
+        public function convert(string|StreamInterface $source, ?ImageConversionOptions $options = null): ConvertedImage
+        {
+            throw new LogicException('Conversion must not be attempted.');
+        }
+    };
+    $service = new ImageConverter($detector, [$codec]);
+    expect($service->targetMimeTypes)->toBe(['image/x-unavailable']);
+});
