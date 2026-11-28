@@ -1,6 +1,8 @@
 # Componenta Image Converter
 
-Convert still images to a selected output format. [Русская документация](README.ru.md).
+[Русский](README.ru.md)
+
+Convert still raster images to a selected format. For same-format recompression, use [Image Compressor](https://github.com/componenta/image-compressor).
 
 ## Installation
 
@@ -8,86 +10,201 @@ Convert still images to a selected output format. [Русская докумен
 composer require componenta/image-converter
 ```
 
-Requires PHP 8.4+, GD, EXIF, Componenta Config 4 and MIME Type Detector 2.
+Requires PHP 8.4 or later within PHP 8.x, the `gd` and `exif` extensions, and a GD build with the required formats. Composer dependencies include Componenta Config 4 and MIME Type Detector 2.
 
-## Usage
+Documentation for version 2.x. [Upgrade guide](UPGRADE.md).
 
-The DI provider registers the `ImageConverter` orchestrator and the four built-in GD codecs. Obtain the orchestrator from the container, or construct it with a `MimeTypeDetectorInterface` and an iterable of codecs.
+## Quick start
 
 ```php
-use Componenta\Image\ImageConversionOptions;
+use Componenta\Detector\FinfoDetector;
+use Componenta\Image\GdAvifConverter;
+use Componenta\Image\GdJpegConverter;
+use Componenta\Image\GdPngConverter;
+use Componenta\Image\GdWebPConverter;
+use Componenta\Image\${name};
+use Componenta\Image\${opt};
 
-$image = $converter->convert($source, 'webp', new ImageConversionOptions(quality: 85));
-$png = $converter->convert($jpegSource, 'png', new ImageConversionOptions(compressionLevel: 7));
+$converter = new ImageConverter(new FinfoDetector(), [
+    new GdJpegConverter(),
+    new GdPngConverter(),
+    new GdWebPConverter(),
+    new GdAvifConverter(),
+]);
+
+$source = file_get_contents('photo.png');
+if ($source === false) {
+    throw new \RuntimeException('Unable to read image.');
+}
+
+$image = $converter->convert(
+    $source,
+    'webp',
+    new ImageConversionOptions(quality: 85),
+);
+
+file_put_contents('photo.webp', $image->content);
 ```
 
-The source is raw bytes (not a filesystem path) or a PSR-7 `StreamInterface`. The result is `ConvertedImage` with read-only `content`, `mimeType`, `extension` and computed `size` in bytes. Results require nonempty content, a concrete image MIME type without parameters, and a valid extension without a leading dot. MIME and extension metadata are normalized to lowercase. For image MIME types with registered extensions, the extension must agree with the MIME Type Detector default catalog. Unmapped custom image types may declare their own valid extension. These checks do not validate the encoded bytes or authorize a filesystem path; applications still need a storage and serving policy.
+Pass raw image bytes or a PSR-7 stream (`Psr\Http\Message\StreamInterface`), not a file path. The orchestrator detects the source MIME type and selects a registered codec. When constructing `ImageConverter` directly, only explicitly registered codecs are used.
 
-## Formats and options
+## Supported formats
 
-| Target | Source formats |
+| Target | Sources | Codec | Default |
+| --- | --- | --- | --- |
+| JPEG | PNG, WebP, AVIF, BMP | `GdJpegConverter` | `quality: 82` |
+| PNG | JPEG, WebP, AVIF, BMP | `GdPngConverter` | `compressionLevel: 6` |
+| WebP | JPEG, PNG, AVIF, BMP | `GdWebPConverter` | `quality: 80` |
+| AVIF | JPEG, PNG, WebP, BMP | `GdAvifConverter` | `quality: 80` |
+
+Specify the target using its MIME type, short name or registered extension: `image/jpeg`, `jpeg`, `jpg`, `.jpg`. Matching is case-insensitive. Built-in converters do not perform same-format operations.
+
+Actual codec availability depends on the GD build.
+
+## Public API
+
+### `ImageConverter`
+
+```php
+public function __construct(
+    MimeTypeDetectorInterface $detector,
+    iterable $converters = [],
+    ImageConversionLimits $limits = new ImageConversionLimits(),
+);
+public function convert(
+    string|StreamInterface $source,
+    string $targetType,
+    ?ImageConversionOptions $options = null,
+): ConvertedImage;
+public function canConvert(string|StreamInterface $source, string $targetType): bool;
+public function addConverter(ImageConverterInterface&ImageConversionTargetProviderInterface $converter): void;
+
+/** @var list<string> */
+public array $targetMimeTypes { get; }
+```
+
+`targetMimeTypes` returns unique registered canonical MIME types in registration order. The read-only property excludes aliases and reflects later registrations; an empty registry returns `[]`.
+
+`canConvert()` checks routing and the input byte limit, not full image validity or successful processing. A registered target in `targetMimeTypes` does not guarantee native encoder availability.
+
+### Direct codec use
+
+Use a codec directly when the format is known:
+
+```php
+$codec = new GdWebPConverter(defaultQuality: 85);
+if ($codec->supports('image/png')) {
+    $image = $codec->convert($source);
+}
+```
+
+All built-in codecs implement `ImageConverterInterface`. `supports(string $mimeType): bool` checks source MIME support and required GD codec availability. Set constructor defaults with `defaultQuality` for JPEG, WebP and AVIF or `defaultCompressionLevel` for PNG. All codecs accept `limits`.
+
+### `ImageConversionOptions`
+
+Immutable operation settings.
+
+| Parameter | Formats | Value |
+| --- | --- | --- |
+| `quality` | JPEG, WebP, AVIF | `int`, 0–100. Encoding quality. |
+| `compressionLevel` | PNG | `int`, 0–9. Compression effort, not image quality. |
+| `avifSpeed` | AVIF | `int`, 0–10. Lower values favor compression over speed. |
+
+Numeric options default to `null`, which uses the codec's defaults; GD selects the default AVIF speed. Unsupported settings and out-of-range values are rejected.
+
+### `ConvertedImage`
+
+| Property | Value |
 | --- | --- |
-| JPEG | PNG, WebP, AVIF, BMP |
-| PNG | JPEG, WebP, AVIF, BMP |
-| WebP | JPEG, PNG, AVIF, BMP |
-| AVIF | JPEG, PNG, WebP, BMP |
+| `content: string` | Result bytes. |
+| `mimeType: string` | MIME type, e.g. `image/webp`. |
+| `extension: string` | Extension without a leading dot, e.g. `webp`. |
+| `size: int` | Size in bytes. |
 
-Same-format operations belong to the image-compressor package.
+All properties are read-only. Construction validates nonempty content, a concrete image MIME type without parameters, and extension compatibility for known types. Custom types outside the default MIME catalog may use a valid custom extension. These checks do not validate the encoded bytes or authorize a storage path.
 
-The read-only virtual property `$converter->targetMimeTypes` returns the unique registered canonical output MIME types in registration order (for example `['image/jpeg', 'image/png']`). An empty registry returns `[]`. The list reflects subsequent successful registrations and excludes aliases. It describes registration, not native codec availability or source compatibility; use `canConvert()` for a specific source.
+## Streams and resource limits
 
-Actual codec availability depends on the GD build. `supports()` reports the supported source MIME types and available native codecs. `canConvert($source, 'webp')` checks routing and input-byte limits, not complete image validity.
+Seekable streams are read from the beginning and their original position is restored on success or failure. Non-seekable streams are consumed once from the current position; `canConvert()` returns `false` without reading them.
 
-- `quality`: JPEG, WebP and AVIF, integer 0–100.
-- `compressionLevel`: PNG, integer 0–9; changes compression effort, not visual quality.
-- `avifSpeed`: AVIF, integer 0–10; lower values favor compression.
+Immutable `ImageConversionLimits` defaults:
 
-Omitted settings use the codec defaults: JPEG 82, WebP and AVIF 80, PNG level 6, AVIF speed selected by GD. Unsupported options are rejected.
+| Parameter | Default |
+| --- | ---: |
+| `maxInputBytes` | 33,554,432 (32 MiB) |
+| `maxOutputBytes` | 67,108,864 (64 MiB) |
+| `maxPixels` | 16,000,000 |
+| `maxWidth` | 8,192 |
+| `maxHeight` | 8,192 |
 
-## Input ownership and resource limits
+All limits must be positive. The orchestrator enforces input and output byte limits; codecs enforce geometry and their own byte limits. Pass the same limits object to both when constructing manually:
 
-A seekable stream is read from its beginning and its position is restored on success or failure. If restoration itself fails, the operation and capability probe throw `ConversionStreamPositionRestoreException` (a subtype of `ConversionException`); the stream's position is no longer guaranteed. The exception retains the restoration error as its cause and any original read failure in `readFailure`. A non-seekable stream is consumed once from its current position; capability probes return false without consuming it. The orchestrator sends the same bounded byte snapshot to detection and processing, including custom codecs.
-
-Default `ImageConversionLimits` values: 32 MiB input, 16,000,000 pixels, width and height up to 8192, and 64 MiB encoded output. Register a limits object in the DI container to configure the orchestrator and its built-in codecs together. For manual construction, pass the same limits object to the orchestrator and each codec: the orchestrator enforces byte limits, and the codec enforces dimensions and its own byte limits. An independently constructed or overridden codec retains its own configuration. Built-in codecs check input bytes and declared dimensions before decoding and cap retained encoded output. The orchestrator also rejects oversized results from custom codecs; custom codecs must enforce their own decoding and allocation limits.
-
-AVIF structural inspection rejects duplicate file-type, metadata and item-property containers and limits each item-property container to 32,767 properties (the largest addressable property index).
-
-Before native image-header parsing, built-in codecs require a recognized signature for an allowed raster source format. This prevents unrelated formats, such as compressed SWF, from reaching PHP's broader header parser. The signature check is not a full validation.
-
-These limits are not an absolute native-memory or CPU bound. Process isolation, upload validation and resource/time restrictions remain necessary for untrusted inputs.
-
-**AVIF deployment note:** Some system libgd builds lack the [upstream AVIF memory-leak fix](https://github.com/libgd/libgd/pull/832). Repeated `imageavif()` calls can leak native memory even when PHP-managed memory remains flat. Use a patched libgd or a PHP GD build containing that fix; verify the actual deployed build, not just AVIF availability. Until patched, omit the AVIF encoder from your registered codecs or run AVIF encoding in isolated, resource-limited processes with a bounded lifetime. PHP code cannot free leaked native allocations.
-
-## Image fidelity and errors
-
-Built-in codecs process still images. GIF, declared APNG, animated WebP and AVIF sequences declaring the `avis` brand are unsupported. AVIF containers with a movie box and no explicit `avif` major brand are also rejected: libavif can otherwise select a track instead of the primary still item, depending on box order. JPEG input must contain a complete outer marker stream through EOI; recoverable truncation is rejected even when GD would synthesize missing bytes. Trailing data after EOI is permitted and discarded on re-encoding. WebP RIFF lengths and chunk padding are checked against the declared container boundary (RFC 9649). A still image must contain one image bitstream; duplicate or misplaced extended headers and animation frame chunks are rejected. Unflagged animation control metadata alone is ignored. Extra bytes outside the declared RIFF boundary are allowed and discarded on re-encoding. This does not validate every entropy-coded coefficient. JPEG EXIF orientation is applied before re-encoding; JPEG output has a white background where transparency must be removed. PNG palette data is not unnecessarily converted to true color. JPEG-to-PNG and 24-bit BMP-to-PNG encode opaque RGB without a redundant alpha channel; decoded pixel values are preserved. BMP decoding is limited to the formats supported by GD; preservation of an alpha channel from 32-bit BMP is not guaranteed by GD. GD does not provide full metadata, ICC profile, HDR or high-bit-depth preservation. GD stores alpha internally at seven-bit precision; an eight-bit alpha sample can change by one on a PNG round trip even though PNG compression itself is lossless. The PNG compression level controls the encoder, not this precision limit. Conversion rejects 16-bit PNG with a tRNS color key because GD can merge distinct opaque and transparent samples during bit-depth reduction. Other 16-bit PNGs remain convertible with GD's reduced precision. AVIF files with non-identity display transformations associated with the primary color item (rotation, reflection, clean aperture cropping or non-square pixels) are rejected because GD does not apply them when decoding. Identity properties, unused properties and independent transformations of other items (such as thumbnails) are allowed. AVIF quality also controls alpha quantization in GD; at low quality transparency values may be approximate. The API does not expose independent lossless alpha for AVIF; PNG compression rejects 16-bit PNG. The output header is checked for format and dimensions, not fully re-decoded after every operation.
-
-Operational failures throw `ConversionException`. Invalid registration or limit configuration throws `InvalidArgumentException`. Unexpected programming errors are not silently suppressed.
-
-## Extension and integration
-
-Implement `ImageConverterInterface` to use a custom fixed-format codec directly. For registration with `ImageConverter`, it must also implement `ImageConversionTargetProviderInterface`, exposing one concrete `targetMimeType` (without parameters) and a list of additional short `targetAliases`. The canonical MIME type and its subtype are registered automatically. Call `addConverter($codec)` or provide the codec in the constructor; no target arguments are accepted. Built-in targets accept names, extensions and known MIME aliases (e.g. `jpg`, `.jpg`, `jpeg`, `image/jpeg`, `image/pjpeg`). For a custom target, `targetMimeType = 'image/x-special'` and `targetAliases = ['special']` register `image/x-special`, `x-special` and `special`, not `image/special`. Registration validates all keys before changing the registry; another codec cannot claim an occupied key. The same instance cannot change its canonical format. The result MIME type must agree with the declared format; custom codecs are responsible for valid bytes.
-
-The package declares `Componenta\Image\ConfigProvider` in Composer metadata for provider discovery. The factories use a registered MIME detector or create `FinfoDetector`. For fixed WebP conversion the provider aliases `ImageConverterInterface` to `GdWebPConverter`.
-
-## Development
-
-```sh
-composer test
-composer analyse
-composer bench
+```php
+$limits = new ImageConversionLimits(maxInputBytes: 8 * 1024 * 1024);
+$converter = new ImageConverter(
+    new FinfoDetector(),
+    [new GdWebPConverter(limits: $limits)],
+    limits: $limits,
+);
 ```
 
-PHPBench scenarios require a GD build with all built-in codecs. They use deterministic synthetic images at 1, 4 and 12 MP (subject to input limits), and compare raw bytes with streams. See [UPGRADE.md](UPGRADE.md) for migration.
+Limits are not absolute bounds on native memory or processing time. For untrusted uploads, use input validation, process isolation and resource limits.
 
-The `Compare performance` workflow compares v1.0.1 and the candidate on the same PHP 8.4 runner with equivalent codec settings, three isolated iterations per common case. It excludes conversions not supported by v1; stream measurements use 1 MP inputs. PHPBench reports PHP-managed peak memory, not total native RSS.
+## Errors
 
-The `Native memory` workflow also compares candidate time and peak RSS against a pinned v2 reference (median of three independent processes per case). A regression must exceed both 20% and 10 ms for time, or both 15% and 8 MiB for RSS; an independent repeat confirms the threshold before failing. Historical v1 results and PHPBench remain diagnostic. The thresholds are CI noise tolerances, not resource guarantees.
+- `ConversionException` — read failures, unsupported formats or options, invalid images, exceeded limits and processing failures.
+- `ConversionStreamPositionRestoreException` — stream position could not be restored; a subtype of the above, also possible from `canConvert()`. The original read failure is available in `readFailure` and the restoration error through `getPrevious()`.
+- `InvalidArgumentException` — invalid resource limits or invalid/conflicting target registration.
 
-The PHP 8.4/8.5 check runs deterministic input mutations and a Linux worker test for JPEG, PNG and WebP (20 warmup cycles, then three batches of 60). Persistent growth above 16 MiB current RSS or 2 MiB live PHP memory fails the check. AVIF runs separately for 200 operations against direct native GD in fresh processes: persistent native growth emits a warning; additional persistent RSS growth over 16 MiB or live PHP growth over 2 MiB fails. This is not an absolute memory guarantee. `php benchmarks/worker-codec-probe.php encode avif avif` isolates the native encoder on the installed build.
+## Image processing behavior
+
+- Only still images are supported. GIF, animated PNG (APNG), animated WebP and AVIF sequences are unsupported. Malformed containers are rejected; the checks are not full image validation.
+- JPEG EXIF orientation is applied during re-encoding. When converting to JPEG, transparency is composited onto white.
+- Preservation of metadata, ICC profiles, HDR and original bit depth is not guaranteed. Trailing data outside JPEG and WebP containers is accepted and discarded during re-encoding.
+- GD uses seven-bit internal alpha precision; eight-bit PNG alpha samples may change by one. Low AVIF quality can also affect transparency precision.
+- 16-bit PNGs with a transparency color key (tRNS) are rejected; other 16-bit PNGs are converted with reduced precision. Alpha preservation for 32-bit BMP is not guaranteed.
+- AVIF with non-identity primary-image display transforms (rotation, reflection, cropping or non-square pixels) is rejected. AVIF with movie tracks requires the `avif` major brand.
+
+**AVIF in long-lived workers.** Some libgd builds have a [native memory leak during AVIF encoding](https://github.com/libgd/libgd/pull/832). Use a patched build; until then, omit AVIF encoding or run it in isolated, resource-limited processes with a bounded lifetime.
+
+## Custom codecs
+
+Implement `ImageConverterInterface` for direct use. A codec registered with the orchestrator must additionally implement `ImageConversionTargetProviderInterface`:
+
+```php
+interface ImageConverterInterface
+{
+    public function convert(
+        string|StreamInterface $source,
+        ?ImageConversionOptions $options = null,
+    ): ConvertedImage;
+
+    public function supports(string $mimeType): bool;
+}
+
+interface ImageConversionTargetProviderInterface
+{
+    public string $targetMimeType { get; }
+
+    /** @var list<string> */
+    public array $targetAliases { get; }
+}
+```
+
+Declare one fixed concrete target MIME type without parameters. Its subtype is registered automatically. For example, `targetMimeType = 'image/x-special'` and `targetAliases = ['special']` accept `image/x-special`, `x-special` and `special`, not `image/special`. Aliases cannot claim names reserved for other built-in formats. Conflicting registrations are rejected atomically; re-registering the same instance cannot change its target MIME type. The result must match the declared format.
+
+When called through the orchestrator, a custom codec receives raw bytes rather than the original stream. It is responsible for valid output, option and geometry limits, and safe decoding.
+
+## Container integration
+
+The `Componenta\Image\ConfigProvider` config provider registers `ImageConverter` and the four built-in codecs. After loading the configuration, resolve the service from a PSR-11 container:
+
+```php
+$converter = $container->get(ImageConverter::class);
+```
+
+Register `ImageConversionLimits::class` in the container to configure the orchestrator and codecs created by the default factories. Independently overridden codecs retain their own settings. A registered `MimeTypeDetectorInterface` is used if present; otherwise the factories use `FinfoDetector`. The default configuration aliases `ImageConverterInterface` to `GdWebPConverter`, not the orchestrator.
 
 ## License
 
 [MIT](LICENSE).
-
-JPEG orientation is read from the bounded APP1 TIFF payload; unrelated APP1 metadata such as XMP does not interfere with orientation detection.
