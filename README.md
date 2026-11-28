@@ -10,7 +10,7 @@ Convert still raster images to a selected format. For same-format recompression,
 composer require componenta/image-converter
 ```
 
-Requires PHP 8.4 or later within PHP 8.x, the `gd` and `exif` extensions, and a GD build with the required formats. Composer dependencies include Componenta Config 4 and MIME Type Detector 2.
+Requires PHP 8.4 or later within PHP 8.x, the `gd` and `exif` extensions, and the required GD codecs. Dependencies: Componenta Config 4 and MIME Type Detector 2.
 
 Documentation for version 2.x. [Upgrade guide](UPGRADE.md).
 
@@ -22,8 +22,8 @@ use Componenta\Image\GdAvifConverter;
 use Componenta\Image\GdJpegConverter;
 use Componenta\Image\GdPngConverter;
 use Componenta\Image\GdWebPConverter;
-use Componenta\Image\${name};
-use Componenta\Image\${opt};
+use Componenta\Image\ImageConverter;
+use Componenta\Image\ImageConversionOptions;
 
 $converter = new ImageConverter(new FinfoDetector(), [
     new GdJpegConverter(),
@@ -46,7 +46,7 @@ $image = $converter->convert(
 file_put_contents('photo.webp', $image->content);
 ```
 
-Pass raw image bytes or a PSR-7 stream (`Psr\Http\Message\StreamInterface`), not a file path. The orchestrator detects the source MIME type and selects a registered codec. When constructing `ImageConverter` directly, only explicitly registered codecs are used.
+Pass image bytes or a PSR-7 stream, not a file path. ImageConverter detects the source MIME type and selects a codec registered through the constructor or added later.
 
 ## Supported formats
 
@@ -59,11 +59,11 @@ Pass raw image bytes or a PSR-7 stream (`Psr\Http\Message\StreamInterface`), not
 
 Specify the target using its MIME type, short name or registered extension: `image/jpeg`, `jpeg`, `jpg`, `.jpg`. Matching is case-insensitive. Built-in converters do not perform same-format operations.
 
-Actual codec availability depends on the GD build.
-
 ## Public API
 
 ### `ImageConverter`
+
+Public method and property signatures:
 
 ```php
 public function __construct(
@@ -102,8 +102,6 @@ All built-in codecs implement `ImageConverterInterface`. `supports(string $mimeT
 
 ### `ImageConversionOptions`
 
-Immutable operation settings.
-
 | Parameter | Formats | Value |
 | --- | --- | --- |
 | `quality` | JPEG, WebP, AVIF | `int`, 0–100. Encoding quality. |
@@ -121,7 +119,7 @@ Numeric options default to `null`, which uses the codec's defaults; GD selects t
 | `extension: string` | Extension without a leading dot, e.g. `webp`. |
 | `size: int` | Size in bytes. |
 
-All properties are read-only. Construction validates nonempty content, a concrete image MIME type without parameters, and extension compatibility for known types. Custom types outside the default MIME catalog may use a valid custom extension. These checks do not validate the encoded bytes or authorize a storage path.
+Create a result with `new ConvertedImage($content, $mimeType, $extension)`. All properties are read-only. Content must be nonempty; the MIME type must be a concrete image type without parameters; the extension must be valid and match known types. Unknown types may use a valid custom extension. MIME type and extension are normalized to lowercase. Metadata validation does not validate bytes or authorize a storage path.
 
 ## Streams and resource limits
 
@@ -158,9 +156,9 @@ Limits are not absolute bounds on native memory or processing time. For untruste
 
 ## Image processing behavior
 
-- Only still images are supported. GIF, animated PNG (APNG), animated WebP and AVIF sequences are unsupported. Malformed containers are rejected; the checks are not full image validation.
+- Built-in codecs process still images only. GIF, APNG, animated WebP and AVIF sequences are unsupported. Structural checks are not complete image validation.
 - JPEG EXIF orientation is applied during re-encoding. When converting to JPEG, transparency is composited onto white.
-- Preservation of metadata, ICC profiles, HDR and original bit depth is not guaranteed. Trailing data outside JPEG and WebP containers is accepted and discarded during re-encoding.
+- Metadata, ICC profiles, HDR and original bit depth are not guaranteed to be preserved. Trailing data beyond the JPEG end marker or WebP container is discarded during re-encoding.
 - GD uses seven-bit internal alpha precision; eight-bit PNG alpha samples may change by one. Low AVIF quality can also affect transparency precision.
 - 16-bit PNGs with a transparency color key (tRNS) are rejected; other 16-bit PNGs are converted with reduced precision. Alpha preservation for 32-bit BMP is not guaranteed.
 - AVIF with non-identity primary-image display transforms (rotation, reflection, cropping or non-square pixels) is rejected. AVIF with movie tracks requires the `avif` major brand.
@@ -203,7 +201,7 @@ The `Componenta\Image\ConfigProvider` config provider registers `ImageConverter`
 $converter = $container->get(ImageConverter::class);
 ```
 
-Register `ImageConversionLimits::class` in the container to configure the orchestrator and codecs created by the default factories. Independently overridden codecs retain their own settings. A registered `MimeTypeDetectorInterface` is used if present; otherwise the factories use `FinfoDetector`. The default configuration aliases `ImageConverterInterface` to `GdWebPConverter`, not the orchestrator.
+Register `ImageConversionLimits::class` to configure default factory limits, and `MimeTypeDetectorInterface::class` to replace the default `FinfoDetector`. Overridden codecs retain their own settings. The default configuration aliases `ImageConverterInterface` to `GdWebPConverter`, not the orchestrator.
 
 ## License
 
