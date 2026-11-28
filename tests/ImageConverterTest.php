@@ -8,7 +8,7 @@ use Componenta\Detector\MimeType;
 use Componenta\Detector\MimeTypeDetectorInterface;
 use Componenta\Image\ConvertedImage;
 use Componenta\Image\ConversionException;
-use Componenta\Image\ImageConversionTargetsProviderInterface;
+use Componenta\Image\ImageConversionTargetProviderInterface;
 use Componenta\Image\ImageConversionOptions;
 use Componenta\Image\ImageConverter;
 use Componenta\Image\ImageConverterInterface;
@@ -17,7 +17,7 @@ use Psr\Http\Message\StreamInterface;
 
 final class ImageConverterTest extends TestCase
 {
-    public function testConvertsUsingConverterRegisteredThroughConversionTargets(): void
+    public function testConvertsUsingConverterRegisteredThroughTargetProvider(): void
     {
         $converter = new ImageConverter(
             detector: new FixedMimeTypeDetector('image/png'),
@@ -33,10 +33,10 @@ final class ImageConverterTest extends TestCase
         self::assertSame(91, $targetConverter->quality);
     }
 
-    public function testCanAddConverterWithExplicitTargetTypes(): void
+    public function testCanAddConverterWithDeclaredTarget(): void
     {
         $converter = new ImageConverter(new FixedMimeTypeDetector('image/png'));
-        $converter->addConverter(new ExplicitTargetConverter(), 'custom');
+        $converter->addConverter(new DeclaredCustomConverter());
 
         $image = $converter->convert('source-bytes', 'custom');
 
@@ -113,14 +113,11 @@ final class ImageConverterTest extends TestCase
         $converter->convert('source-bytes', 'webp');
     }
 
-    public function testRequiresExplicitTargetTypesWhenConverterDoesNotExposeConversionTargets(): void
+    public function testRejectsConverterWithoutTargetProvider(): void
     {
         $converter = new ImageConverter(new FixedMimeTypeDetector('image/png'));
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage(
-            'Target types must be provided for image converters that do not expose conversion targets.',
-        );
+        $this->expectException(\TypeError::class);
 
         $converter->addConverter(new ExplicitTargetConverter());
     }
@@ -139,17 +136,15 @@ final readonly class FixedMimeTypeDetector implements MimeTypeDetectorInterface
     }
 }
 
-final class TargetAwareConverter implements ImageConverterInterface, ImageConversionTargetsProviderInterface
+final class TargetAwareConverter implements ImageConverterInterface, ImageConversionTargetProviderInterface
 {
     public string|StreamInterface|null $source = null;
     public ?int $quality = null;
 
-    /**
-     * @var list<string>
-     */
-    public array $conversionTargets {
-        get => ['webp', 'image/webp'];
-    }
+    public string $targetMimeType { get => 'image/webp'; }
+
+    /** @var list<string> */
+    public array $targetAliases { get => []; }
 
     #[\Override]
     public function convert(string|StreamInterface $source, ?ImageConversionOptions $options = null): ConvertedImage
@@ -158,6 +153,25 @@ final class TargetAwareConverter implements ImageConverterInterface, ImageConver
         $this->quality = $options?->quality;
 
         return new ConvertedImage('converted-webp', 'image/webp', 'webp');
+    }
+
+    #[\Override]
+    public function supports(string $mimeType): bool
+    {
+        return $mimeType === 'image/png';
+    }
+}
+
+final readonly class DeclaredCustomConverter implements ImageConverterInterface, ImageConversionTargetProviderInterface
+{
+    public string $targetMimeType { get => 'image/custom'; }
+
+    public array $targetAliases { get => []; }
+
+    #[\Override]
+    public function convert(string|StreamInterface $source, ?ImageConversionOptions $options = null): ConvertedImage
+    {
+        return new ConvertedImage('converted-custom', 'image/custom', 'custom');
     }
 
     #[\Override]

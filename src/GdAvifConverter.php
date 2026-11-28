@@ -7,7 +7,7 @@ namespace Componenta\Image;
 use Componenta\Image\Converter\Internal\GdProcessor;
 use Psr\Http\Message\StreamInterface;
 
-final class GdAvifConverter implements ImageConverterInterface, ImageConversionTargetsProviderInterface
+final class GdAvifConverter implements ImageConverterInterface, ImageConversionTargetProviderInterface
 {
     /** @var list<string> */
     private const array SUPPORTED = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
@@ -21,9 +21,13 @@ final class GdAvifConverter implements ImageConverterInterface, ImageConversionT
         }
     }
 
+    public string $targetMimeType {
+        get => 'image/avif';
+    }
+
     /** @var list<string> */
-    public array $conversionTargets {
-        get => ['avif', 'image/avif'];
+    public array $targetAliases {
+        get => [];
     }
 
     #[\Override]

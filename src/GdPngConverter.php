@@ -7,7 +7,7 @@ namespace Componenta\Image;
 use Componenta\Image\Converter\Internal\GdProcessor;
 use Psr\Http\Message\StreamInterface;
 
-final class GdPngConverter implements ImageConverterInterface, ImageConversionTargetsProviderInterface
+final class GdPngConverter implements ImageConverterInterface, ImageConversionTargetProviderInterface
 {
     /** @var list<string> */
     private const array SUPPORTED = ['image/jpeg', 'image/webp', 'image/avif', 'image/bmp'];
@@ -21,9 +21,13 @@ final class GdPngConverter implements ImageConverterInterface, ImageConversionTa
         }
     }
 
+    public string $targetMimeType {
+        get => 'image/png';
+    }
+
     /** @var list<string> */
-    public array $conversionTargets {
-        get => ['png', 'image/png'];
+    public array $targetAliases {
+        get => [];
     }
 
     #[\Override]

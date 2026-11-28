@@ -12,11 +12,11 @@ use Psr\Http\Message\StreamInterface;
 
 final class ImageConverter
 {
-    /** @var array<string, array{codec: ImageConverterInterface, format: string}> */
+    /** @var array<array-key, array{codec: ImageConverterInterface, format: string}> */
     private array $converters = [];
 
     /**
-     * @param iterable<ImageConverterInterface> $converters
+     * @param iterable<ImageConverterInterface&ImageConversionTargetProviderInterface> $converters
      * @param ImageConversionLimits $limits Byte limits for the orchestrator; configure each codec's own geometry and byte limits.
      */
     public function __construct(
@@ -29,91 +29,49 @@ final class ImageConverter
         }
     }
 
-    public function addConverter(ImageConverterInterface $converter, string ...$targetTypes): void
-    {
-        $declared = $converter instanceof ImageConversionTargetsProviderInterface
-            ? $converter->conversionTargets
-            : [];
-        if ($targetTypes === []) {
-            $targetTypes = $declared;
+    public function addConverter(
+        ImageConverterInterface&ImageConversionTargetProviderInterface $converter,
+    ): void {
+        $mime = MimeType::tryCreate($converter->targetMimeType);
+        if ($mime === null || !$mime->isImage() || $mime->parameters !== []) {
+            throw new \InvalidArgumentException('Target must be a concrete image MIME type without parameters.');
         }
-        if ($targetTypes === []) {
-            throw new \InvalidArgumentException(
-                'Target types must be provided for image converters that do not expose conversion targets.',
-            );
+        $format = $this->normalizeTargetType($mime->value);
+        $name = substr($format, 6);
+        $targets = [$format, $name];
+
+        $aliases = $converter->targetAliases;
+        if (!array_is_list($aliases)) {
+            throw new \InvalidArgumentException('Target aliases must be a list of short names.');
+        }
+        foreach ($aliases as $alias) {
+            if (!is_string($alias)) {
+                throw new \InvalidArgumentException('Invalid image conversion alias.');
+            }
+            $target = $this->normalizeTargetType($alias);
+            if (!preg_match('/^[a-z0-9][a-z0-9!#$&^_.+-]*$/D', $target)) {
+                throw new \InvalidArgumentException('Invalid image conversion alias.');
+            }
+            if (in_array($target, ['jpeg', 'png', 'webp', 'avif'], true) && $target !== $name) {
+                throw new \InvalidArgumentException('Alias conflicts with a built-in image format.');
+            }
+            $targets[] = $target;
         }
 
-        // Resolve the immutable format before publishing aliases. A fixed converter
-        // cannot acquire a different output format through a later registration.
-        $provider = $this->parseTargets($declared);
-        $requested = $this->parseTargets($targetTypes);
-        $format = $provider['format']
-            ?? (count($provider['aliases']) === 1 ? $provider['aliases'][0] : null);
+        // Snapshot the declaration; the same instance cannot change its output format.
         foreach ($this->converters as $registration) {
-            if ($registration['codec'] === $converter) {
-                if ($format !== null && $format !== $registration['format']) {
-                    throw new \InvalidArgumentException('Target format conflicts with the existing converter registration.');
-                }
-                $format = $registration['format'];
-                break;
+            if ($registration['codec'] === $converter && $registration['format'] !== $format) {
+                throw new \InvalidArgumentException('Target format conflicts with the existing converter registration.');
             }
         }
-        if ($format !== null && $requested['format'] !== null && $format !== $requested['format']) {
-            throw new \InvalidArgumentException('Target format conflicts with the converter declaration.');
-        }
-        $format ??= $requested['format'];
-        $normalized = $requested['aliases'];
-        if ($format === null) {
-            if (count($normalized) !== 1 || count($provider['aliases']) > 1) {
-                throw new \InvalidArgumentException('Multiple custom aliases require a canonical image MIME type.');
-            }
-            $format = $normalized[0];
-        }
-
-        foreach ($normalized as $target) {
+        foreach ($targets as $target) {
             if (isset($this->converters[$target])
                 && ($this->converters[$target]['codec'] !== $converter || $this->converters[$target]['format'] !== $format)) {
                 throw new \InvalidArgumentException('A different image converter is already registered for this target.');
             }
         }
-        foreach ($normalized as $target) {
+        foreach ($targets as $target) {
             $this->converters[$target] = ['codec' => $converter, 'format' => $format];
-        }
-    }
-
-    /**
-     * @param array<array-key, mixed> $targets
-     * @return array{aliases: list<string>, format: ?string}
-     */
-    private function parseTargets(array $targets): array
-    {
-        $aliases = [];
-        $format = null;
-        foreach ($targets as $alias) {
-            if (!is_string($alias)) {
-                throw new \InvalidArgumentException('Invalid image conversion target.');
-            }
-            $target = $this->normalizeTargetType($alias);
-            $this->assertValidTarget($target);
-            $aliases[$target] = $target;
-            if (!str_starts_with(strtolower(trim($alias)), 'image/')
-                && !in_array($target, ['jpeg', 'png', 'webp', 'avif'], true)) {
-                continue;
-            }
-            if ($format !== null && $format !== $target) {
-                throw new \InvalidArgumentException('A fixed converter must declare one target image format.');
-            }
-            $format = $target;
-        }
-
-        return ['aliases' => array_values($aliases), 'format' => $format];
-    }
-
-    private function assertValidTarget(string $target): void
-    {
-        if (!preg_match('/^[a-z0-9][a-z0-9!#$&^_.+-]*$/D', $target)
-            || MimeType::tryCreate('image/' . $target) === null) {
-            throw new \InvalidArgumentException('Invalid image conversion target.');
         }
     }
 
@@ -183,16 +141,14 @@ final class ImageConverter
     private function normalizeTargetType(string $targetType): string
     {
         $targetType = strtolower(trim($targetType));
-        $targetType = ltrim($targetType, '.');
-
-        if (str_starts_with($targetType, 'image/')) {
-            $targetType = substr($targetType, 6);
-        }
-
-        return match ($targetType) {
+        $isMime = str_starts_with($targetType, 'image/');
+        $name = $isMime ? substr($targetType, 6) : ltrim($targetType, '.');
+        $name = match ($name) {
             'jpg', 'pjpeg', 'jpeg' => 'jpeg',
             'x-png', 'png' => 'png',
-            default => $targetType,
+            default => $name,
         };
+
+        return $isMime ? 'image/' . $name : $name;
     }
 }

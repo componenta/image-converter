@@ -8,7 +8,7 @@
 - Limits default to 32 MiB, 16 million pixels and 8192 pixels in either dimension, and 64 MiB encoded output. Configure explicit limits for larger trusted sources.
 - JPEG EXIF orientation is applied during re-encoding. Full metadata and ICC profile preservation are not promised.
 
-- Each converter registration identifies a single output format; multiple custom aliases require its canonical image MIME type. A single custom short alias without a declaration implies `image/<alias>`.
+- Register fixed-format codecs that implement both `ImageConverterInterface` and `ImageConversionTargetProviderInterface`. The previous plural `ImageConversionTargetsProviderInterface` is replaced by the singular interface, with `targetMimeType` and `targetAliases` instead of `conversionTargets`. Move target arguments from `addConverter($codec, ...)` into these declarations and call `addConverter($codec)`. The canonical MIME type and subtype are registered automatically; short aliases no longer imply additional MIME types. Direct codec use still requires only `ImageConverterInterface`.
 
 - Result objects reject empty bytes, non-image or parameterized MIME types, and invalid extensions. MIME and extension metadata are normalized to lowercase.
 

@@ -10,6 +10,8 @@ use Componenta\Image\ConversionException;
 use Componenta\Image\ConvertedImage;
 use Componenta\Image\ImageConverter;
 use Componenta\Image\ImageConverterInterface;
+use Componenta\Image\ImageConversionTargetProviderInterface;
+use Componenta\Image\ImageConversionOptions;
 use Componenta\Image\ImageConversionLimits;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\StreamInterface;
@@ -66,17 +68,26 @@ final class ConverterStreamContractTest extends TestCase
                 return new MimeType('image/png');
             },
         );
-        $handler = $this->createMock(ImageConverterInterface::class);
-        $handler->method('supports')->with('image/png')->willReturn(true);
-        $handler->method('convert')->willReturnCallback(
-            static function (string|StreamInterface $source, ?\Componenta\Image\ImageConversionOptions $options = null) use ($expected): ConvertedImage {
-                self::assertSame($expected, $source);
+        $handler = new class($expected) implements ImageConverterInterface, ImageConversionTargetProviderInterface {
+            public string $targetMimeType { get => 'image/webp'; }
+            public array $targetAliases { get => []; }
 
+            public function __construct(private readonly string $expected) {}
+
+            public function supports(string $mimeType): bool
+            {
+                TestCase::assertSame('image/png', $mimeType);
+                return true;
+            }
+
+            public function convert(string|StreamInterface $source, ?ImageConversionOptions $options = null): ConvertedImage
+            {
+                TestCase::assertSame($this->expected, $source);
                 return new ConvertedImage('result', 'image/webp', 'webp');
-            },
-        );
+            }
+        };
         $service = new ImageConverter($detector, limits: $limits);
-        $service->addConverter($handler, 'webp');
+        $service->addConverter($handler);
 
         return $service;
     }

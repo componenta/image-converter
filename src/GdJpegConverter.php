@@ -7,7 +7,7 @@ namespace Componenta\Image;
 use Componenta\Image\Converter\Internal\GdProcessor;
 use Psr\Http\Message\StreamInterface;
 
-final class GdJpegConverter implements ImageConverterInterface, ImageConversionTargetsProviderInterface
+final class GdJpegConverter implements ImageConverterInterface, ImageConversionTargetProviderInterface
 {
     /** @var list<string> */
     private const array SUPPORTED = ['image/png', 'image/webp', 'image/avif', 'image/bmp'];
@@ -21,9 +21,13 @@ final class GdJpegConverter implements ImageConverterInterface, ImageConversionT
         }
     }
 
+    public string $targetMimeType {
+        get => 'image/jpeg';
+    }
+
     /** @var list<string> */
-    public array $conversionTargets {
-        get => ['jpeg', 'jpg', 'image/jpeg'];
+    public array $targetAliases {
+        get => ['jpg'];
     }
 
     #[\Override]
