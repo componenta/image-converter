@@ -74,9 +74,6 @@ final class GdProcessor
             JpegStructure::assertComplete($raw);
         }
         self::assertStatic($raw, $mime, $info['bits'] ?? 8);
-        if ($mime === 'image/png' && $target === 'image/png' && ($info['bits'] ?? 8) > 8) {
-            throw new ConversionException('GD cannot preserve the bit depth of this PNG.');
-        }
 
         $orientation = $mime === 'image/jpeg'
             ? self::native(static fn(): int => JpegOrientation::read($raw))
