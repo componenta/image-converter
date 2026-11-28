@@ -78,6 +78,8 @@ PHPBench scenarios require a GD build with all built-in codecs. They use determi
 
 The `Compare performance` workflow compares v1.0.1 and the candidate on the same PHP 8.4 runner with equivalent codec settings, three isolated iterations per common case. It excludes conversions not supported by v1; stream measurements use 1 MP inputs. PHPBench reports PHP-managed peak memory, not total native RSS.
 
+The `Native memory` workflow also compares candidate time and peak RSS against a pinned v2 reference (median of three independent processes per case). A regression must exceed both 20% and 10 ms for time, or both 15% and 8 MiB for RSS; an independent repeat confirms the threshold before failing. Historical v1 results and PHPBench remain diagnostic. The thresholds are CI noise tolerances, not resource guarantees.
+
 ## License
 
 [MIT](LICENSE).

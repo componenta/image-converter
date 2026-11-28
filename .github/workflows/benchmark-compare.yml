@@ -6,10 +6,8 @@ on:
     paths:
       - '.github/workflows/benchmark-compare.yml'
       - 'benchmarks/**'
-      - 'src/**/GdProcessor.php'
-      - 'src/**/JpegStructure.php'
-      - 'src/**/JpegOrientation.php'
-      - 'src/**/AvifStructure.php'
+      - 'src/**'
+      - 'composer.json'
   workflow_dispatch:
 
 permissions:

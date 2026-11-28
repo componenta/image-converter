@@ -65,7 +65,12 @@ require $autoload;
 
 $file = (new ReflectionClass(ImageConverter::class))->getFileName();
 $baseline = is_string($file) && str_contains($file, '/.benchmark-baseline/');
-if ($baseline !== ($version === 'v1')) {
+$actualVersion = match (true) {
+    $baseline => 'v1',
+    is_string($file) && str_contains($file, '/.regression-baseline/') => 'reference',
+    default => 'v2',
+};
+if ($actualVersion !== $version) {
     throw new RuntimeException('Wrong library resolved for RSS measurement: ' . $file);
 }
 

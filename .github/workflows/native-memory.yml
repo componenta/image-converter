@@ -5,7 +5,7 @@ on:
     branches: ['refactor/image-processing-v2']
     paths:
       - '.github/workflows/native-memory.yml'
-      - 'benchmarks/rss-probe.php'
+      - 'benchmarks/**'
       - 'src/**'
       - 'composer.json'
   workflow_dispatch:
@@ -23,6 +23,10 @@ jobs:
         with:
           ref: v1.0.1
           path: .benchmark-baseline
+      - uses: actions/checkout@v7
+        with:
+          ref: 8d901b59bac4e4203d7ed1f341de45c3b9cf3fe4
+          path: .regression-baseline
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -31,6 +35,7 @@ jobs:
           tools: composer:v2
       - run: composer install --no-interaction --prefer-dist --no-dev
       - run: composer install --working-dir=.benchmark-baseline --no-interaction --prefer-dist --no-dev
+      - run: composer install --working-dir=.regression-baseline --no-interaction --prefer-dist --no-dev
       - name: Compare peak RSS on separate PHP processes
         run: |
           set -euo pipefail
@@ -41,11 +46,44 @@ jobs:
           php benchmarks/rss-probe.php fixture "$fixtures/png-12mp" png 4000 3000
           php benchmarks/rss-probe.php fixture "$fixtures/webp-4mp" webp 2000 2000
           php benchmarks/rss-probe.php fixture "$fixtures/avif-4mp" avif 2000 2000
-          for case in jpeg-12mp:png png-12mp:jpeg jpeg-12mp:webp webp-4mp:avif jpeg-exif-12mp:png avif-4mp:png; do
+          cases="jpeg-12mp:png png-12mp:jpeg jpeg-12mp:webp webp-4mp:avif jpeg-exif-12mp:png avif-4mp:png"
+          # Keep historical v1 results separate from the regression gate.
+          for case in $cases; do
             fixture="${case%:*}"
             target="${case#*:}"
             for attempt in 1 2 3; do
               php benchmarks/rss-probe.php run .benchmark-baseline/vendor/autoload.php "$fixtures/$fixture" "$target" v1
-              php benchmarks/rss-probe.php run vendor/autoload.php "$fixtures/$fixture" "$target" v2
             done
           done
+
+          measure() {
+            local log="$1" case fixture target attempt
+            : > "$log"
+            for case in $cases; do
+              fixture="${case%:*}"
+              target="${case#*:}"
+              for attempt in 1 2 3; do
+                if [ "$attempt" = 2 ]; then
+                  php benchmarks/rss-probe.php run vendor/autoload.php "$fixtures/$fixture" "$target" v2 | tee -a "$log"
+                  php benchmarks/rss-probe.php run .regression-baseline/vendor/autoload.php "$fixtures/$fixture" "$target" reference | tee -a "$log"
+                else
+                  php benchmarks/rss-probe.php run .regression-baseline/vendor/autoload.php "$fixtures/$fixture" "$target" reference | tee -a "$log"
+                  php benchmarks/rss-probe.php run vendor/autoload.php "$fixtures/$fixture" "$target" v2 | tee -a "$log"
+                fi
+              done
+            done
+          }
+
+          log="$RUNNER_TEMP/rss-comparison.jsonl"
+          measure "$log"
+          if php benchmarks/check-rss.php "$log" $cases; then
+            exit 0
+          else
+            status=$?
+            if [ "$status" -ne 1 ]; then
+              exit "$status"
+            fi
+          fi
+          echo "Potential regression; repeat independent measurements before failing."
+          measure "$log"
+          php benchmarks/check-rss.php "$log" $cases
