@@ -21,3 +21,5 @@
 - AVIF movie containers require the explicit still-image major brand `avif`; an ambiguous major brand can cause libavif to select a track and silently lose frames. The existing rejection of `avis` remains unchanged.
 
 - Conversion rejects 16-bit PNGs with a tRNS color key to avoid silent loss of distinct opaque pixels during GD's bit-depth reduction. Other 16-bit PNGs remain convertible at GD's reduced precision.
+
+- WebP RIFF framing is checked through the entire declared container, including trailing metadata chunks and padding. Data outside the declared RIFF boundary remains permitted.

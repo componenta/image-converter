@@ -306,9 +306,8 @@ final class GdProcessor
                 }
                 $offset += $length + 12;
             }
-        } elseif ($mime === 'image/webp' && strlen($raw) >= 21
-            && substr($raw, 12, 4) === 'VP8X' && (ord($raw[20]) & 0x02) !== 0) {
-            throw new ConversionException('Animated WebP is not supported.');
+        } elseif ($mime === 'image/webp') {
+            WebpStructure::assertStatic($raw);
         } elseif ($mime === 'image/avif') {
             AvifStructure::assertSupported($raw);
         }
