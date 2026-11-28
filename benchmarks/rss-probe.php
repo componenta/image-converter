@@ -23,7 +23,7 @@ if (($argv[1] ?? '') === 'fixture') {
         }
     }
     $ok = match ($format) {
-        'jpeg' => imagejpeg($image, $path, 90),
+        'jpeg', 'jpeg-exif' => imagejpeg($image, $path, 90),
         'png' => imagepng($image, $path, 6),
         'webp' => imagewebp($image, $path, 90),
         'avif' => imageavif($image, $path, 90),
@@ -32,6 +32,26 @@ if (($argv[1] ?? '') === 'fixture') {
     };
     if (!$ok || !is_file($path) || filesize($path) === 0) {
         throw new RuntimeException('Unable to encode benchmark fixture.');
+    }
+
+    if ($format === 'jpeg-exif') {
+        // Orientation 1 keeps the expected dimensions identical in both versions.
+        // A genuine EXIF APP1 segment activates the metadata-reading path.
+        $bytes = file_get_contents($path);
+        if ($bytes === false) {
+            throw new RuntimeException('Unable to read JPEG fixture.');
+        }
+        $exif = "Exif\0\0II" . pack('vVvvvVv', 42, 8, 1, 0x112, 3, 1, 1)
+            . "\0\0" . pack('V', 0);
+        $bytes = substr($bytes, 0, 2) . "\xff\xe1" . pack('n', strlen($exif) + 2)
+            . $exif . substr($bytes, 2);
+        if (file_put_contents($path, $bytes) !== strlen($bytes)) {
+            throw new RuntimeException('Unable to write EXIF fixture.');
+        }
+        $metadata = exif_read_data($path, 'IFD0', true, false);
+        if (($metadata['IFD0']['Orientation'] ?? null) !== 1) {
+            throw new RuntimeException('EXIF benchmark fixture is invalid.');
+        }
     }
 
     exit(0);

@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/native-memory.yml'
       - 'benchmarks/rss-probe.php'
+      - 'src/**'
+      - 'composer.json'
   workflow_dispatch:
 
 permissions:
@@ -35,10 +37,11 @@ jobs:
           fixtures="$RUNNER_TEMP/image-fixtures"
           mkdir -p "$fixtures"
           php benchmarks/rss-probe.php fixture "$fixtures/jpeg-12mp" jpeg 4000 3000
+          php benchmarks/rss-probe.php fixture "$fixtures/jpeg-exif-12mp" jpeg-exif 4000 3000
           php benchmarks/rss-probe.php fixture "$fixtures/png-12mp" png 4000 3000
           php benchmarks/rss-probe.php fixture "$fixtures/webp-4mp" webp 2000 2000
           php benchmarks/rss-probe.php fixture "$fixtures/avif-4mp" avif 2000 2000
-          for case in jpeg-12mp:png png-12mp:jpeg jpeg-12mp:webp webp-4mp:avif; do
+          for case in jpeg-12mp:png png-12mp:jpeg jpeg-12mp:webp webp-4mp:avif jpeg-exif-12mp:png avif-4mp:png; do
             fixture="${case%:*}"
             target="${case#*:}"
             for attempt in 1 2 3; do
