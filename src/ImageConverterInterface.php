@@ -18,7 +18,8 @@ interface ImageConverterInterface
      * @param ImageConversionOptions|null $options Format-specific settings, null for defaults
      * @return ConvertedImage Converted image data
      *
-     * @throws ConversionException If conversion fails
+     * @throws ConversionExceptionInterface If conversion fails
+     * @throws ConversionStreamExceptionInterface If reading or restoring a source stream fails
      */
     public function convert(string|StreamInterface $source, ?ImageConversionOptions $options = null): ConvertedImage;
 

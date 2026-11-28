@@ -6,6 +6,7 @@ namespace Componenta\Image;
 
 final readonly class ImageConversionOptions
 {
+    /** @throws ConversionExceptionInterface */
     public function __construct(
         public ?int $quality = null,
         public ?int $compressionLevel = null,

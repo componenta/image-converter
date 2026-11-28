@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 use Componenta\Detector\MimeType;
 use Componenta\Detector\MimeTypeDetectorInterface;
-use Componenta\Image\ConversionException;
-use Componenta\Image\ConversionStreamPositionRestoreException;
+use Componenta\Image\ConversionExceptionInterface;
+use Componenta\Image\ConversionStreamExceptionInterface;
+use Componenta\Image\ConversionStreamPositionRestoreExceptionInterface;
 use Componenta\Image\ImageConverter;
 use Componenta\Image\GdJpegConverter;
 use Psr\Http\Message\StreamInterface;
@@ -37,11 +38,12 @@ test('a restoration failure is never hidden by the capability probe', function (
             $service->convert($stream, 'jpeg');
         }
         $this->fail('Expected stream restoration failure.');
-    } catch (ConversionStreamPositionRestoreException $error) {
-        expect($error)->toBeInstanceOf(ConversionException::class);
+    } catch (ConversionStreamPositionRestoreExceptionInterface $error) {
+        expect($error)->toBeInstanceOf(ConversionStreamExceptionInterface::class);
+        expect($error)->not->toBeInstanceOf(ConversionExceptionInterface::class);
         expect($error->getPrevious())->toBe($restoreError);
         if ($readFails) {
-            expect($error->readFailure)->toBeInstanceOf(ConversionException::class);
+            expect($error->readFailure)->toBeInstanceOf(ConversionStreamExceptionInterface::class);
             expect($error->readFailure->getPrevious())->toBe($readError);
         } else {
             expect($error->readFailure)->toBeNull();
@@ -60,7 +62,7 @@ test('a non-progressing stream is rejected without invoking detection', function
     $codec = new GdJpegConverter();
     $service = new ImageConverter($detector);
     $service->addConverter($codec);
-    expect(fn() => $service->convert($stream, 'jpeg'))->toThrow(ConversionException::class, 'no progress');
+    expect(fn() => $service->convert($stream, 'jpeg'))->toThrow(ConversionStreamExceptionInterface::class, 'no progress');
 });
 
 test('ordinary read failure restores the seekable source', function (): void {
@@ -76,5 +78,15 @@ test('ordinary read failure restores the seekable source', function (): void {
     $codec = new GdJpegConverter();
     $service = new ImageConverter($detector);
     $service->addConverter($codec);
+    expect($service->canConvert($stream, 'jpeg'))->toBeFalse();
+});
+
+
+test('stream capability probing converts a seekability failure into a negative result', function (): void {
+    $stream = $this->createStub(StreamInterface::class);
+    $stream->method('isSeekable')->willThrowException(new RuntimeException('seekability unavailable'));
+    $detector = $this->createMock(MimeTypeDetectorInterface::class);
+    $detector->expects($this->never())->method('detectMimeType');
+    $service = new ImageConverter($detector, [new GdJpegConverter()]);
     expect($service->canConvert($stream, 'jpeg'))->toBeFalse();
 });

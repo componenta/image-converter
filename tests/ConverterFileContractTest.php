@@ -5,7 +5,12 @@ declare(strict_types=1);
 use Componenta\Detector\FinfoDetector;
 use Componenta\Detector\MimeType;
 use Componenta\Detector\MimeTypeDetectorInterface;
-use Componenta\Image\ConversionException;
+use Componenta\Image\ConversionExceptionInterface;
+use Componenta\Image\ConversionFileExceptionInterface;
+use Componenta\Image\ConversionFileUnavailableException;
+use Componenta\Image\ConversionInvalidFileException;
+use Componenta\Image\ConversionFileReadException;
+use Componenta\Image\ConversionStreamExceptionInterface;
 use Componenta\Image\ConvertedImage;
 use Componenta\Image\Converter\Internal\EncodedOutput;
 use Componenta\Image\GdJpegConverter;
@@ -90,7 +95,7 @@ test('file input limits are enforced before detection', function (): void {
         $detector = $this->createMock(MimeTypeDetectorInterface::class);
         $detector->expects($this->never())->method('detectMimeType');
         $service = new ImageConverter($detector, [new GdJpegConverter()], new ImageConversionLimits(maxInputBytes: 65536));
-        expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionException::class, 'input byte limit');
+        expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionExceptionInterface::class, 'input byte limit');
         expect(filesize($path))->toBe(65537);
     } finally {
         unlink($path);
@@ -119,7 +124,15 @@ test('file conversion rejects wrappers, malformed paths and non-files before det
         };
         set_error_handler($handler);
         try {
-            expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionException::class);
+            $expected = $kind === 'missing' ? ConversionFileUnavailableException::class : ConversionInvalidFileException::class;
+            try {
+                $service->convertFile($path, 'jpeg');
+                $this->fail('Expected file failure.');
+            } catch (ConversionFileExceptionInterface $error) {
+                expect($error)->toBeInstanceOf($expected);
+                expect($error)->not->toBeInstanceOf(ConversionExceptionInterface::class);
+                expect($error)->not->toBeInstanceOf(ConversionStreamExceptionInterface::class);
+            }
             $installed = set_error_handler(static fn(): bool => true);
             restore_error_handler();
             expect($installed)->toBe($handler);
@@ -135,7 +148,7 @@ test('unknown targets fail before opening a file', function (): void {
     $detector = $this->createMock(MimeTypeDetectorInterface::class);
     $detector->expects($this->never())->method('detectMimeType');
     $service = new ImageConverter($detector, [new GdJpegConverter()]);
-    expect(fn() => $service->convertFile('', 'unregistered'))->toThrow(ConversionException::class, 'No image converter is registered');
+    expect(fn() => $service->convertFile('', 'unregistered'))->toThrow(ConversionExceptionInterface::class, 'No image converter is registered');
 });
 
 test('file conversion rejects a FIFO without blocking', function (): void {
@@ -151,7 +164,7 @@ test('file conversion rejects a FIFO without blocking', function (): void {
         $detector = $this->createMock(MimeTypeDetectorInterface::class);
         $detector->expects($this->never())->method('detectMimeType');
         $service = new ImageConverter($detector, [new GdJpegConverter()]);
-        expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionException::class, 'regular file');
+        expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionInvalidFileException::class, 'regular file');
     } finally {
         unlink($path);
     }
@@ -186,9 +199,38 @@ test('file conversion enforces codec geometry and output limits', function (): v
     try {
         foreach ([new ImageConversionLimits(maxPixels: 5), new ImageConversionLimits(maxOutputBytes: 1)] as $limits) {
             $service = new ImageConverter(new FinfoDetector(), [new GdJpegConverter(limits: $limits)], $limits);
-            expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionException::class);
+            expect(fn() => $service->convertFile($path, 'jpeg'))->toThrow(ConversionExceptionInterface::class);
         }
     } finally {
+        unlink($path);
+    }
+});
+
+
+test('an unreadable regular file has a file-read exception rather than a conversion error', function (): void {
+    if (PHP_OS_FAMILY === 'Windows') {
+        $this->markTestSkipped('POSIX file permissions required.');
+    }
+    $path = converterFileFixture('bytes');
+    try {
+        chmod($path, 0000);
+        clearstatcache(true, $path);
+        if (is_readable($path)) {
+            $this->markTestSkipped('The current user can read files regardless of mode.');
+        }
+        $detector = $this->createMock(MimeTypeDetectorInterface::class);
+        $detector->expects($this->never())->method('detectMimeType');
+        $service = new ImageConverter($detector, [new GdJpegConverter()]);
+        try {
+            $service->convertFile($path, 'jpeg');
+            $this->fail('Expected a file read failure.');
+        } catch (ConversionFileReadException $error) {
+            expect($error)->toBeInstanceOf(ConversionFileExceptionInterface::class);
+            expect($error)->not->toBeInstanceOf(ConversionExceptionInterface::class);
+            expect($error->getPrevious())->toBeInstanceOf(ErrorException::class);
+        }
+    } finally {
+        chmod($path, 0600);
         unlink($path);
     }
 });

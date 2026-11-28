@@ -7,6 +7,7 @@ namespace Componenta\Image;
 use Componenta\Detector\DetectorException;
 use Componenta\Detector\MimeTypeDetectorInterface;
 use Componenta\Detector\MimeType;
+use Componenta\Image\Converter\Internal\FileReader;
 use Componenta\Image\Converter\Internal\SourceReader;
 use Psr\Http\Message\StreamInterface;
 
@@ -35,6 +36,7 @@ final class ImageConverter
     /**
      * @param iterable<ImageConverterInterface&ImageConversionTargetProviderInterface> $converters
      * @param ImageConversionLimits $limits Byte limits for the orchestrator; configure each codec's own geometry and byte limits.
+     * @throws ConversionExceptionInterface
      */
     public function __construct(
         private readonly MimeTypeDetectorInterface $detector,
@@ -46,12 +48,13 @@ final class ImageConverter
         }
     }
 
+    /** @throws ConversionExceptionInterface */
     public function addConverter(
         ImageConverterInterface&ImageConversionTargetProviderInterface $converter,
     ): void {
         $mime = MimeType::tryCreate($converter->targetMimeType);
         if ($mime === null || !$mime->isImage() || $mime->parameters !== []) {
-            throw new \InvalidArgumentException('Target must be a concrete image MIME type without parameters.');
+            throw new ConversionConfigurationException('Target must be a concrete image MIME type without parameters.');
         }
         $format = $this->normalizeTargetType($mime->value);
         $name = substr($format, 6);
@@ -61,18 +64,18 @@ final class ImageConverter
         /** @var array<array-key, mixed> $aliases */
         $aliases = $converter->targetAliases;
         if (!array_is_list($aliases)) {
-            throw new \InvalidArgumentException('Target aliases must be a list of short names.');
+            throw new ConversionConfigurationException('Target aliases must be a list of short names.');
         }
         foreach ($aliases as $alias) {
             if (!is_string($alias)) {
-                throw new \InvalidArgumentException('Invalid image conversion alias.');
+                throw new ConversionConfigurationException('Invalid image conversion alias.');
             }
             $target = $this->normalizeTargetType($alias);
             if (!preg_match('/^[a-z0-9][a-z0-9!#$&^_.+-]*$/D', $target)) {
-                throw new \InvalidArgumentException('Invalid image conversion alias.');
+                throw new ConversionConfigurationException('Invalid image conversion alias.');
             }
             if (in_array($target, ['jpeg', 'png', 'webp', 'avif'], true) && $target !== $name) {
-                throw new \InvalidArgumentException('Alias conflicts with a built-in image format.');
+                throw new ConversionConfigurationException('Alias conflicts with a built-in image format.');
             }
             $targets[] = $target;
         }
@@ -80,13 +83,13 @@ final class ImageConverter
         // Snapshot the declaration; the same instance cannot change its output format.
         foreach ($this->converters as $registration) {
             if ($registration['codec'] === $converter && $registration['format'] !== $format) {
-                throw new \InvalidArgumentException('Target format conflicts with the existing converter registration.');
+                throw new ConversionConfigurationException('Target format conflicts with the existing converter registration.');
             }
         }
         foreach ($targets as $target) {
             if (isset($this->converters[$target])
                 && ($this->converters[$target]['codec'] !== $converter || $this->converters[$target]['format'] !== $format)) {
-                throw new \InvalidArgumentException('A different image converter is already registered for this target.');
+                throw new ConversionConfigurationException('A different image converter is already registered for this target.');
             }
         }
         foreach ($targets as $target) {
@@ -94,6 +97,10 @@ final class ImageConverter
         }
     }
 
+    /**
+     * @throws ConversionExceptionInterface
+     * @throws ConversionStreamExceptionInterface
+     */
     public function convert(string|StreamInterface $source, string $targetType, ?ImageConversionOptions $options = null): ConvertedImage
     {
         $registration = $this->requireTarget($targetType);
@@ -102,11 +109,15 @@ final class ImageConverter
         return $this->convertBytes($source, $targetType, $options, $registration);
     }
 
-    /** Convert a caller-authorized local file; the source file is not modified. */
+    /**
+     * Convert a caller-authorized local file without modifying it.
+     * @throws ConversionExceptionInterface
+     * @throws ConversionFileExceptionInterface
+     */
     public function convertFile(string $path, string $targetType, ?ImageConversionOptions $options = null): ConvertedImage
     {
         $registration = $this->requireTarget($targetType);
-        $source = SourceReader::readFile($path, $this->limits->maxInputBytes);
+        $source = FileReader::read($path, $this->limits->maxInputBytes);
 
         return $this->convertBytes($source, $targetType, $options, $registration);
     }
@@ -151,6 +162,7 @@ final class ImageConverter
         return $image;
     }
 
+    /** @throws ConversionStreamPositionRestoreExceptionInterface */
     public function canConvert(string|StreamInterface $source, string $targetType): bool
     {
         $normalizedTargetType = $this->normalizeTargetType($targetType);
@@ -161,16 +173,22 @@ final class ImageConverter
         }
 
         // A capability probe must not consume a one-shot stream.
-        if ($source instanceof StreamInterface && !$source->isSeekable()) {
-            return false;
+        if ($source instanceof StreamInterface) {
+            try {
+                if (!$source->isSeekable()) {
+                    return false;
+                }
+            } catch (\RuntimeException) {
+                return false;
+            }
         }
         try {
             $source = SourceReader::read($source, $this->limits->maxInputBytes);
             $sourceMimeType = $this->detector->detectMimeType($source);
-        } catch (ConversionStreamPositionRestoreException $error) {
+        } catch (ConversionStreamPositionRestoreExceptionInterface $error) {
             // A failed restoration is a broken ownership guarantee, not a negative capability.
             throw $error;
-        } catch (DetectorException|ConversionException) {
+        } catch (DetectorException|ConversionExceptionInterface|ConversionStreamExceptionInterface) {
             return false;
         }
 

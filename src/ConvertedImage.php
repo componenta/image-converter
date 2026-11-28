@@ -14,6 +14,7 @@ final class ConvertedImage
     public readonly string $mimeType;
     public readonly string $extension;
 
+    /** @throws ConversionExceptionInterface */
     public function __construct(
         public readonly string $content,
         string $mimeType,
