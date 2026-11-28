@@ -12,10 +12,16 @@ use Componenta\Image\Converter\Codec\GdWebPConverter;
 use Componenta\Image\Converter\Codec\GdAvifConverter;
 use Componenta\Image\Converter\ImageConverter;
 use Componenta\Image\Converter\ImageConversionLimits;
+use Componenta\Image\Converter\Exception\ConversionConfigurationException;
+use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 
 final readonly class ImageConverterFactory
 {
+    /**
+     * @throws ConversionConfigurationException
+     * @throws ContainerExceptionInterface
+     */
     public function __invoke(ContainerInterface $container): ImageConverter
     {
         $detector = $container->has(MimeTypeDetectorInterface::class)

@@ -9,6 +9,7 @@ use Componenta\Image\Converter\Exception\ConversionException;
 /** @internal */
 final class JpegOrientation
 {
+    /** @throws ConversionException */
     public static function read(string $raw): int
     {
         // Only an APP1 marker in the JPEG header can declare EXIF orientation.

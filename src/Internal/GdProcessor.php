@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Componenta\Image\Converter\Internal;
 
 use Componenta\Image\Converter\Exception\ConversionException;
+use Componenta\Image\Converter\Exception\ConversionExceptionInterface;
+use Componenta\Image\Converter\Exception\ConversionStreamExceptionInterface;
 use Componenta\Image\Converter\ImageConversionLimits;
 use GdImage;
 use Psr\Http\Message\StreamInterface;
@@ -39,7 +41,11 @@ final class GdProcessor
             });
     }
 
-    /** @param list<string> $allowed */
+    /**
+     * @param list<string> $allowed
+     * @throws ConversionExceptionInterface
+     * @throws ConversionStreamExceptionInterface
+     */
     public static function process(
         string|StreamInterface $source,
         array $allowed,
@@ -205,6 +211,7 @@ final class GdProcessor
         return $flag !== 0 && (imagetypes() & $flag) !== 0;
     }
 
+    /** @throws ConversionException */
     private static function orientJpeg(GdImage $image, int $orientation): GdImage
     {
         if (in_array($orientation, [2, 5, 7], true)) {
@@ -229,6 +236,7 @@ final class GdProcessor
         return $rotated;
     }
 
+    /** @throws ConversionException */
     private static function flatten(GdImage $source): GdImage
     {
         $width = imagesx($source);
@@ -247,6 +255,7 @@ final class GdProcessor
         return $canvas;
     }
 
+    /** @throws ConversionException */
     private static function expandColorKey(GdImage $source): GdImage
     {
         $width = imagesx($source);
@@ -266,13 +275,17 @@ final class GdProcessor
         return $canvas;
     }
 
+    /** @throws ConversionException */
     private static function preserveAlpha(GdImage $image): void
     {
         self::requireSuccess(static fn() => imagealphablending($image, false), 'Failed to configure alpha blending.');
         self::requireSuccess(static fn() => imagesavealpha($image, true), 'Failed to preserve alpha channel.');
     }
 
-    /** @param callable(): bool $operation */
+    /**
+     * @param callable(): bool $operation
+     * @throws ConversionException
+     */
     private static function requireSuccess(callable $operation, string $message): void
     {
         // PHP 8.5 narrows several GD return types to true; PHP 8.4 also needs false handling.
@@ -281,6 +294,7 @@ final class GdProcessor
         }
     }
 
+    /** @throws ConversionException */
     private static function assertStatic(string $raw, string $mime, int $bitDepth): void
     {
         if ($mime === 'image/png') {
@@ -318,6 +332,7 @@ final class GdProcessor
      * @template T
      * @param callable(): T $operation
      * @return T
+     * @throws ConversionException If GD reports a warning or an error.
      */
     private static function native(callable $operation): mixed
     {

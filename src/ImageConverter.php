@@ -130,14 +130,20 @@ final class ImageConverter
         return $this->convertBytes($source, $targetType, $options, $registration);
     }
 
-    /** @return array{codec: ImageConverterInterface, format: string} */
+    /**
+     * @return array{codec: ImageConverterInterface, format: string}
+     * @throws ConversionException
+     */
     private function requireTarget(string $targetType): array
     {
         return $this->converters[$this->normalizeTargetType($targetType)]
             ?? throw ConversionException::unsupportedTarget($targetType);
     }
 
-    /** @param array{codec: ImageConverterInterface, format: string} $registration */
+    /**
+     * @param array{codec: ImageConverterInterface, format: string} $registration
+     * @throws ConversionExceptionInterface
+     */
     private function convertBytes(
         string $source,
         string $targetType,

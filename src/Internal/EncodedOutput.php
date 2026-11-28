@@ -9,7 +9,11 @@ use Componenta\Image\Converter\Exception\ConversionException;
 /** @internal */
 final class EncodedOutput
 {
-    /** @param callable(): bool $encode */
+    /**
+     * Encoder callback exceptions propagate unchanged.
+     * @param callable(): bool $encode
+     * @throws ConversionException If buffering, encoding or the output limit fails.
+     */
     public static function capture(callable $encode, int $maxBytes = PHP_INT_MAX): string
     {
         $content = '';

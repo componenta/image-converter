@@ -85,6 +85,7 @@ final class AvifStructure
         }
     }
 
+    /** @throws ConversionException */
     private static function primaryItem(string $raw, int $start, int $end): int
     {
         $length = $end - $start;
@@ -107,6 +108,7 @@ final class AvifStructure
         return $id;
     }
 
+    /** @throws ConversionException */
     private static function assertProperties(string $raw, int $start, int $end, ?int $primaryItem): void
     {
         $properties = [];
@@ -151,7 +153,10 @@ final class AvifStructure
         }
     }
 
-    /** @param array<int, array{string, int, int}> $properties */
+    /**
+     * @param array<int, array{string, int, int}> $properties
+     * @throws ConversionException
+     */
     private static function assertAssociations(
         string $raw,
         int $offset,
@@ -230,6 +235,7 @@ final class AvifStructure
     /**
      * @param array{string, int, int} $property
      * @param array{int, int}|null $geometry
+     * @throws ConversionException
      */
     private static function isIdentity(string $raw, array $property, ?array $geometry): bool
     {
@@ -263,7 +269,10 @@ final class AvifStructure
             && self::uint32($raw, $start + 28) > 0;
     }
 
-    /** @return Generator<int, array{string, int, int}> */
+    /**
+     * @return Generator<int, array{string, int, int}>
+     * @throws ConversionException
+     */
     private static function boxes(string $raw, int $offset, int $end): Generator
     {
         while ($offset < $end) {
@@ -292,6 +301,7 @@ final class AvifStructure
         }
     }
 
+    /** @throws ConversionException */
     private static function uint32(string $raw, int $offset): int
     {
         // Callers bound the complete field against its containing box.
