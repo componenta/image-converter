@@ -94,3 +94,76 @@ for ($y = 0; $y < 8; ++$y) {
     }
 }
 echo "PNG -> JPEG -> RGB PNG -> compressed PNG pipeline passed.", PHP_EOL;
+
+// Verify alpha through AVIF decoding, re-encoding and conversion in the same
+// consumer process. At maximum AVIF quality the endpoint alpha samples
+// should remain distinct.
+$avif = $converter->convert($png, 'avif', new ImageConversionOptions(quality: 100, avifSpeed: 10));
+$avifCompressed = $compressor->compress($avif->content, new ImageCompressionOptions(quality: 100, avifSpeed: 10));
+$avifPng = $converter->convert($avifCompressed->content, 'png');
+foreach ([$avif, $avifCompressed, $avifPng] as $index => $result) {
+    $expectedMime = $index === 2 ? 'image/png' : 'image/avif';
+    $decoded = imagecreatefromstring($result->content);
+    if ($result->mimeType !== $expectedMime || $decoded === false
+        || imagesx($decoded) !== 24 || imagesy($decoded) !== 8
+        || ((imagecolorat($decoded, 4, 4) >> 24) & 127) < 125
+        || ((imagecolorat($decoded, 20, 4) >> 24) & 127) > 2) {
+        throw new RuntimeException('Combined AVIF pipeline lost format, dimensions or transparency.');
+    }
+}
+echo "PNG -> AVIF -> AVIF -> PNG pipeline passed.", PHP_EOL;
+
+// JPEG orientation must be applied exactly once even with unrelated APP1
+// metadata preceding EXIF. The two-stage pipeline also verifies distinct
+// internal classes from both co-installed libraries.
+$xmp = "http://ns.adobe.com/xap/1.0/\0" . '<x:xmpmeta xmlns:x="adobe:ns:meta/"/>';
+$exif = "Exif\0\0II" . pack('vVvvvVv', 42, 8, 1, 0x112, 3, 1, 6) . "\0\0" . pack('V', 0);
+$orientedJpeg = substr($jpeg->content, 0, 2)
+    . "\xff\xe1" . pack('n', strlen($xmp) + 2) . $xmp
+    . "\xff\xe1" . pack('n', strlen($exif) + 2) . $exif
+    . substr($jpeg->content, 2);
+$rotated = $compressor->compress($orientedJpeg, new ImageCompressionOptions(quality: 100));
+$rotatedPng = $converter->convert($rotated->content, 'png');
+$rotatedPixels = imagecreatefromstring($rotated->content);
+$finalPixels = imagecreatefromstring($rotatedPng->content);
+if ($rotated->mimeType !== 'image/jpeg' || $rotatedPng->mimeType !== 'image/png'
+    || $rotatedPixels === false || $finalPixels === false
+    || imagesx($rotatedPixels) !== 8 || imagesy($rotatedPixels) !== 24
+    || imagesx($finalPixels) !== 8 || imagesy($finalPixels) !== 24) {
+    throw new RuntimeException('EXIF pipeline did not apply orientation exactly once.');
+}
+$white = imagecolorsforindex($finalPixels, imagecolorat($finalPixels, 4, 4));
+$green = imagecolorsforindex($finalPixels, imagecolorat($finalPixels, 4, 20));
+if (min($white['red'], $white['green'], $white['blue']) < 220
+    || $green['green'] < 140 || $green['green'] <= $green['red'] || $green['green'] <= $green['blue']) {
+    throw new RuntimeException('EXIF pipeline did not preserve oriented color regions.');
+}
+for ($y = 0; $y < 24; ++$y) {
+    for ($x = 0; $x < 8; ++$x) {
+        if (imagecolorat($rotatedPixels, $x, $y) !== imagecolorat($finalPixels, $x, $y)) {
+            throw new RuntimeException('PNG conversion changed rotated JPEG pixels.');
+        }
+    }
+}
+echo "JPEG with XMP and EXIF -> JPEG -> PNG pipeline passed.", PHP_EOL;
+
+// Both public orchestration paths must reject a truncated JPEG with a
+// valid header, rather than returning GD's repaired image.
+$truncated = substr($jpeg->content, 0, -2);
+try {
+    $compressor->compress($truncated);
+    throw new RuntimeException('Compressor accepted a truncated JPEG.');
+} catch (\Componenta\Image\CompressionException $error) {
+    if (!str_contains($error->getMessage(), 'end marker')) {
+        throw $error;
+    }
+}
+try {
+    $converter->convert($truncated, 'png');
+    throw new RuntimeException('Converter accepted a truncated JPEG.');
+} catch (\Componenta\Image\ConversionException $error) {
+    if (!str_contains($error->getMessage(), 'end marker')) {
+        throw $error;
+    }
+}
+echo "Both packages rejected a truncated JPEG.", PHP_EOL;
