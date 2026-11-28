@@ -65,6 +65,17 @@ if (!is_string($png) || $png === '') {
 
 $converter = (new ImageConverterFactory())($container);
 $compressor = (new ImageCompressorFactory())($container);
+
+// Confirm that the public discovery contract reflects the actual factory registry.
+$expectedTargets = ['image/webp', 'image/jpeg', 'image/png', 'image/avif'];
+if ($converter->targetMimeTypes !== $expectedTargets) {
+    throw new RuntimeException('Unexpected registered target MIME types.');
+}
+if (!$converter->canConvert($png, '.jpg') || !$converter->canConvert($png, 'image/jpeg')
+    || $converter->canConvert($png, ".image/jpeg") || $converter->canConvert($png, "jpeg\0")) {
+    throw new RuntimeException('Target lookup disagrees with its public registration contract.');
+}
+echo "Factory target discovery and strict target routing passed.", PHP_EOL;
 $converted = $converter->convert($png, 'webp', new ImageConversionOptions(quality: 85));
 $compressed = $compressor->compress($converted->content, new ImageCompressionOptions(quality: 80));
 $decoded = imagecreatefromstring($compressed->content);
