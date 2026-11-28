@@ -32,13 +32,8 @@ $converter = new ImageConverter(new FinfoDetector(), [
     new GdAvifConverter(),
 ]);
 
-$source = file_get_contents('photo.png');
-if ($source === false) {
-    throw new \RuntimeException('Unable to read image.');
-}
-
-$image = $converter->convert(
-    $source,
+$image = $converter->convertFile(
+    'photo.png',
     'webp',
     new ImageConversionOptions(quality: 85),
 );
@@ -46,7 +41,7 @@ $image = $converter->convert(
 file_put_contents('photo.webp', $image->content);
 ```
 
-Pass image bytes or a PSR-7 stream, not a file path. ImageConverter detects the source MIME type and selects a codec registered through the constructor or added later.
+`convertFile()` accepts a local file path; `convert()` accepts image bytes or a PSR-7 stream. The orchestrator detects the MIME type from the content and selects a registered codec.
 
 ## Supported formats
 
@@ -76,6 +71,11 @@ public function convert(
     string $targetType,
     ?ImageConversionOptions $options = null,
 ): ConvertedImage;
+public function convertFile(
+    string $path,
+    string $targetType,
+    ?ImageConversionOptions $options = null,
+): ConvertedImage;
 public function canConvert(string|StreamInterface $source, string $targetType): bool;
 public function addConverter(ImageConverterInterface&ImageConversionTargetProviderInterface $converter): void;
 
@@ -87,11 +87,18 @@ public array $targetMimeTypes { get; }
 
 `canConvert()` checks routing and the input byte limit, not full image validity or successful processing. A registered target in `targetMimeTypes` does not guarantee native encoder availability.
 
+`convertFile()` reads a local regular file within `maxInputBytes`, closes it and returns `ConvertedImage` without modifying the source. URLs, stream wrappers and special files are unsupported; symlinks to regular files are allowed. The caller is responsible for path authorization.
+
 ### Direct codec use
 
 Use a codec directly when the format is known:
 
 ```php
+$source = file_get_contents('photo.png');
+if ($source === false) {
+    throw new \RuntimeException('Unable to read image.');
+}
+
 $codec = new GdWebPConverter(defaultQuality: 85);
 if ($codec->supports('image/png')) {
     $image = $codec->convert($source);

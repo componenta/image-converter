@@ -96,15 +96,36 @@ final class ImageConverter
 
     public function convert(string|StreamInterface $source, string $targetType, ?ImageConversionOptions $options = null): ConvertedImage
     {
-        $normalizedTargetType = $this->normalizeTargetType($targetType);
-        $registration = $this->converters[$normalizedTargetType] ?? null;
-
-        if ($registration === null) {
-            throw ConversionException::unsupportedTarget($targetType);
-        }
-        $converter = $registration['codec'];
-
+        $registration = $this->requireTarget($targetType);
         $source = SourceReader::read($source, $this->limits->maxInputBytes);
+
+        return $this->convertBytes($source, $targetType, $options, $registration);
+    }
+
+    /** Convert a caller-authorized local file; the source file is not modified. */
+    public function convertFile(string $path, string $targetType, ?ImageConversionOptions $options = null): ConvertedImage
+    {
+        $registration = $this->requireTarget($targetType);
+        $source = SourceReader::readFile($path, $this->limits->maxInputBytes);
+
+        return $this->convertBytes($source, $targetType, $options, $registration);
+    }
+
+    /** @return array{codec: ImageConverterInterface, format: string} */
+    private function requireTarget(string $targetType): array
+    {
+        return $this->converters[$this->normalizeTargetType($targetType)]
+            ?? throw ConversionException::unsupportedTarget($targetType);
+    }
+
+    /** @param array{codec: ImageConverterInterface, format: string} $registration */
+    private function convertBytes(
+        string $source,
+        string $targetType,
+        ?ImageConversionOptions $options,
+        array $registration,
+    ): ConvertedImage {
+        $converter = $registration['codec'];
         try {
             $sourceMimeType = $this->detector->detectMimeType($source);
         } catch (DetectorException $error) {

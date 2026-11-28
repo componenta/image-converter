@@ -32,13 +32,8 @@ $converter = new ImageConverter(new FinfoDetector(), [
     new GdAvifConverter(),
 ]);
 
-$source = file_get_contents('photo.png');
-if ($source === false) {
-    throw new \RuntimeException('Не удалось прочитать изображение.');
-}
-
-$image = $converter->convert(
-    $source,
+$image = $converter->convertFile(
+    'photo.png',
     'webp',
     new ImageConversionOptions(quality: 85),
 );
@@ -46,7 +41,7 @@ $image = $converter->convert(
 file_put_contents('photo.webp', $image->content);
 ```
 
-На вход передаются байты изображения или поток PSR-7, не путь к файлу. ImageConverter определяет MIME-тип источника и выбирает обработчик из переданных в конструктор или зарегистрированных позднее.
+`convertFile()` принимает путь к локальному файлу; `convert()` — байты изображения или поток PSR-7. Оркестратор определяет MIME-тип по содержимому и выбирает зарегистрированный обработчик.
 
 ## Поддерживаемые форматы
 
@@ -76,6 +71,11 @@ public function convert(
     string $targetType,
     ?ImageConversionOptions $options = null,
 ): ConvertedImage;
+public function convertFile(
+    string $path,
+    string $targetType,
+    ?ImageConversionOptions $options = null,
+): ConvertedImage;
 public function canConvert(string|StreamInterface $source, string $targetType): bool;
 public function addConverter(ImageConverterInterface&ImageConversionTargetProviderInterface $converter): void;
 
@@ -87,11 +87,18 @@ public array $targetMimeTypes { get; }
 
 `canConvert()` проверяет возможность выбора обработчика и ограничение входного размера, но не гарантирует успешную обработку конкретного изображения. Наличие формата в `targetMimeTypes` также не гарантирует наличие кодировщика в GD.
 
+`convertFile()` читает обычный локальный файл в пределах `maxInputBytes`, закрывает его и возвращает `ConvertedImage`, не изменяя исходный файл. URL, обёртки потоков и специальные файлы не поддерживаются; символьные ссылки на обычные файлы допустимы. Разрешение доступа к пути остаётся ответственностью вызывающей стороны.
+
 ### Прямое использование обработчика
 
 При известном формате можно обойтись без оркестратора:
 
 ```php
+$source = file_get_contents('photo.png');
+if ($source === false) {
+    throw new \RuntimeException('Не удалось прочитать изображение.');
+}
+
 $codec = new GdWebPConverter(defaultQuality: 85);
 if ($codec->supports('image/png')) {
     $image = $codec->convert($source);
