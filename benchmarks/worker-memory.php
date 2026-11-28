@@ -33,18 +33,16 @@ $fixtures = [
     'jpeg' => EncodedOutput::capture(static fn(): bool => imagejpeg($image, null, 90)),
     'png' => EncodedOutput::capture(static fn(): bool => imagepng($image, null, 6)),
     'webp' => EncodedOutput::capture(static fn(): bool => imagewebp($image, null, 90)),
-    'avif' => EncodedOutput::capture(static fn(): bool => imageavif($image, null, 90, 8)),
 ];
 unset($image);
 $service = new ImageConverter(new FinfoDetector(), [
     new GdJpegConverter(), new GdPngConverter(), new GdWebPConverter(), new GdAvifConverter(),
 ]);
-$cases = [['jpeg', 'png'], ['png', 'jpeg'], ['png', 'webp'], ['webp', 'avif'], ['avif', 'png']];
+$cases = [['jpeg', 'png'], ['png', 'jpeg'], ['png', 'webp']];
 $options = [
     'jpeg' => new ImageConversionOptions(quality: 80),
     'png' => new ImageConversionOptions(compressionLevel: 6),
     'webp' => new ImageConversionOptions(quality: 80),
-    'avif' => new ImageConversionOptions(quality: 80, avifSpeed: 8),
 ];
 $process = static function (int $cycles) use ($service, $fixtures, $cases, $options): void {
     for ($cycle = 0; $cycle < $cycles; ++$cycle) {
@@ -64,15 +62,15 @@ $process = static function (int $cycles) use ($service, $fixtures, $cases, $opti
         }
     }
 };
-$process(12);
+$process(20);
 $baseline = workerMemorySample();
 echo json_encode(['stage' => 'warmup', ...$baseline], JSON_THROW_ON_ERROR), PHP_EOL;
 $overLimit = 0;
 for ($batch = 1; $batch <= 3; ++$batch) {
-    $process(20);
+    $process(60);
     $sample = workerMemorySample();
     echo json_encode(['stage' => 'batch-' . $batch, ...$sample], JSON_THROW_ON_ERROR), PHP_EOL;
-    $exceeded = $sample['rss_kib'] - $baseline['rss_kib'] > 32768
+    $exceeded = $sample['rss_kib'] - $baseline['rss_kib'] > 16384
         || $sample['php_bytes'] - $baseline['php_bytes'] > 2097152;
     $overLimit = $exceeded ? $overLimit + 1 : 0;
     if ($overLimit >= 2) {

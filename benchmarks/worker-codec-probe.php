@@ -80,13 +80,23 @@ $process = static function () use ($mode, $from, $to, $image, $raw, $detector, $
             if (!$decoded instanceof GdImage) {
                 throw new RuntimeException('Decode failed.');
             }
+            if ($to === 'avif' || ($to === 'png' && $from === 'avif')) {
+                imagealphablending($decoded, false);
+                imagesavealpha($decoded, true);
+            }
             $encoded = probeEncode($decoded, $to);
-            if (getimagesizefromstring($encoded) === false || getimagesizefromstring($raw) === false) {
+            $header = getimagesizefromstring($encoded);
+            if ($header === false || $header[0] !== 512 || $header[1] !== 384
+                || $header['mime'] !== 'image/' . $to || getimagesizefromstring($raw) === false) {
                 throw new RuntimeException('Header failed.');
             }
             break;
         case 'library':
-            $service->convert($raw, $to, $options);
+            $result = $service->convert($raw, $to, $options);
+            $header = getimagesizefromstring($result->content);
+            if ($header === false || $header[0] !== 512 || $header[1] !== 384 || $header['mime'] !== 'image/' . $to) {
+                throw new RuntimeException('Unexpected library output.');
+            }
             break;
         default:
             throw new InvalidArgumentException('Unknown mode.');

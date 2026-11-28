@@ -29,16 +29,13 @@ jobs:
       - run: composer check
       - name: Repeated processing memory smoke
         run: php benchmarks/worker-memory.php
-      - name: Isolate native codec memory growth
-        if: matrix.php == '8.4'
+      - name: AVIF worker memory comparison against native GD
         run: |
           set -euo pipefail
-          for case in jpeg:png png:jpeg png:webp webp:avif avif:png; do
-            php benchmarks/worker-codec-probe.php library "${case%:*}" "${case#*:}"
-            php benchmarks/worker-codec-probe.php native "${case%:*}" "${case#*:}"
-          done
-          for mode in detect header decode encode; do
-            php benchmarks/worker-codec-probe.php "$mode" avif avif
+          for case in webp:avif avif:png; do
+            php benchmarks/worker-codec-probe.php native "${case%:*}" "${case#*:}" | tee "$RUNNER_TEMP/native-worker.jsonl"
+            php benchmarks/worker-codec-probe.php library "${case%:*}" "${case#*:}" | tee "$RUNNER_TEMP/library-worker.jsonl"
+            php benchmarks/check-worker-memory.php "$RUNNER_TEMP/library-worker.jsonl" "$RUNNER_TEMP/native-worker.jsonl"
           done
       - name: PHPBench smoke
         if: matrix.php == '8.4'
