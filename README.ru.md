@@ -161,15 +161,28 @@ $converter = new ImageConverter(
 
 ## Ошибки
 
-- `ConversionException` — отсутствующий или недоступный файл, недопустимый путь, ошибки чтения, неподдерживаемые форматы и параметры, повреждённые изображения, превышение лимитов и ошибки обработки. `convertFile()` использует это исключение и при файловых ошибках; если исходная ошибка PHP была перехвачена, она доступна через `getPrevious()`. Отдельных типов исключений для отсутствующего и недоступного файла нет.
-- `ConversionStreamPositionRestoreException` — не удалось восстановить позицию потока; подкласс предыдущего исключения, возможен также при проверке `canConvert()`. Исходная ошибка чтения доступна в `readFailure`, причина восстановления — через `getPrevious()`.
-- `InvalidArgumentException` — некорректные пределы ресурсов или объявление целевого формата, конфликт регистрации.
+Перехватывайте исключения по интерфейсам: категории ошибок не пересекаются.
+
+| Интерфейс | Причина |
+| --- | --- |
+| `ConversionExceptionInterface` | Неподдерживаемый формат или параметры, повреждённое изображение, превышение лимитов, ошибки преобразования или конфигурации. |
+| `ConversionFileExceptionInterface` | Ошибка доступа к файлу, недопустимый путь или ошибка файлового ввода-вывода в `convertFile()`. |
+| `ConversionStreamExceptionInterface` | Ошибка чтения или позиционирования переданного потока. |
+
+Файловые ошибки реализованы классами `ConversionFileUnavailableException` (путь не удалось разрешить или файл недоступен), `ConversionInvalidFileException` (недопустимый путь или тип файла) и `ConversionFileReadException` (ошибка открытия, чтения или закрытия). PHP не всегда позволяет надёжно различить отсутствие файла и отказ в доступе при разрешении пути. Превышение лимита размера файла относится к ошибкам преобразования, а не файлового ввода-вывода.
+
+`ConversionConfigurationException` реализует `ConversionExceptionInterface` и наследует `InvalidArgumentException`. `ConversionStreamPositionRestoreExceptionInterface` наследует `ConversionStreamExceptionInterface`: позиция потока не гарантирована, исходная ошибка чтения доступна в `readFailure`, ошибка восстановления — через `getPrevious()`. В отличие от обычных ошибок чтения, эта ошибка не подавляется методом `canConvert()`.
 
 ```php
+use Componenta\Image\ConversionExceptionInterface;
+use Componenta\Image\ConversionFileExceptionInterface;
+
 try {
     $image = $converter->convertFile('photo.png', 'webp');
-} catch (\Componenta\Image\ConversionException $error) {
-    // Обработать ошибку чтения или преобразования.
+} catch (ConversionFileExceptionInterface $error) {
+    // Ошибка доступа к источнику.
+} catch (ConversionExceptionInterface $error) {
+    // Ошибка преобразования.
 }
 ```
 
@@ -191,6 +204,10 @@ try {
 ```php
 interface ImageConverterInterface
 {
+    /**
+     * @throws ConversionExceptionInterface
+     * @throws ConversionStreamExceptionInterface
+     */
     public function convert(
         string|StreamInterface $source,
         ?ImageConversionOptions $options = null,

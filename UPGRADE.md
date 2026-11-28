@@ -12,7 +12,7 @@
 
 - Result objects reject empty bytes, non-image or parameterized MIME types, and invalid extensions. MIME and extension metadata are normalized to lowercase.
 
-- A failed seekable stream restoration now throws `ConversionStreamPositionRestoreException` from both operations and capability probes. It preserves both failure causes instead of silently returning false.
+- Catch operation failures via `ConversionExceptionInterface`, filesystem access via `ConversionFileExceptionInterface`, and stream I/O via `ConversionStreamExceptionInterface`. Stream restoration failures implement `ConversionStreamPositionRestoreExceptionInterface`, retain both causes and no longer implement the conversion exception interface. They are propagated by capability probes. Invalid configuration is a `ConversionConfigurationException` (also an `InvalidArgumentException`). Custom codecs must declare and implement the exception interfaces in their operation contracts.
 
 - For image MIME types mapped in the default MIME catalog, result extensions must match that catalog. Unmapped custom image types can supply their own valid extension.
 

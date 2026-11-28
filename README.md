@@ -161,15 +161,28 @@ Limits are not absolute bounds on native memory or processing time. For untruste
 
 ## Errors
 
-- `ConversionException` — missing or unreadable files, invalid paths, read failures, unsupported formats or options, invalid images, exceeded limits and processing failures. `convertFile()` uses this exception for file errors as well; a caught underlying PHP error is available through `getPrevious()`. Missing and unreadable files do not have separate exception types.
-- `ConversionStreamPositionRestoreException` — stream position could not be restored; a subtype of the above, also possible from `canConvert()`. The original read failure is available in `readFailure` and the restoration error through `getPrevious()`.
-- `InvalidArgumentException` — invalid resource limits or invalid/conflicting target registration.
+Catch failures by their interfaces; the categories are independent.
+
+| Interface | Cause |
+| --- | --- |
+| `ConversionExceptionInterface` | Unsupported formats or options, invalid images, exceeded limits, conversion or configuration failures. |
+| `ConversionFileExceptionInterface` | File access, invalid paths or file I/O failures in `convertFile()`. |
+| `ConversionStreamExceptionInterface` | Failure reading or positioning a caller-owned stream. |
+
+File failures are represented by `ConversionFileUnavailableException` (unresolvable or inaccessible file), `ConversionInvalidFileException` (invalid path or file type), and `ConversionFileReadException` (opening, reading or closing failure). PHP cannot always distinguish absence from denied access during path resolution. Exceeding the file input byte limit is a conversion error, not a file I/O failure.
+
+`ConversionConfigurationException` implements `ConversionExceptionInterface` and extends `InvalidArgumentException`. `ConversionStreamPositionRestoreExceptionInterface` extends `ConversionStreamExceptionInterface`: the stream position is no longer guaranteed, the original read failure is available in `readFailure`, and the restoration failure through `getPrevious()`. Unlike ordinary read failures, this failure is not suppressed by `canConvert()`.
 
 ```php
+use Componenta\Image\ConversionExceptionInterface;
+use Componenta\Image\ConversionFileExceptionInterface;
+
 try {
     $image = $converter->convertFile('photo.png', 'webp');
-} catch (\Componenta\Image\ConversionException $error) {
-    // Handle a file read or conversion failure.
+} catch (ConversionFileExceptionInterface $error) {
+    // Source access failure.
+} catch (ConversionExceptionInterface $error) {
+    // Conversion failure.
 }
 ```
 
@@ -191,6 +204,10 @@ Implement `ImageConverterInterface` for direct use. A codec registered with the 
 ```php
 interface ImageConverterInterface
 {
+    /**
+     * @throws ConversionExceptionInterface
+     * @throws ConversionStreamExceptionInterface
+     */
     public function convert(
         string|StreamInterface $source,
         ?ImageConversionOptions $options = null,

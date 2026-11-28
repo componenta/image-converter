@@ -12,12 +12,13 @@ final class GdPngConverter implements ImageConverterInterface, ImageConversionTa
     /** @var list<string> */
     private const array SUPPORTED = ['image/jpeg', 'image/webp', 'image/avif', 'image/bmp'];
 
+    /** @throws ConversionExceptionInterface */
     public function __construct(
         private readonly int $defaultCompressionLevel = 6,
         private readonly ImageConversionLimits $limits = new ImageConversionLimits(),
     ) {
         if ($defaultCompressionLevel < 0 || $defaultCompressionLevel > 9) {
-            throw new ConversionException('PNG compression level must be between 0 and 9.');
+            throw new ConversionConfigurationException('PNG compression level must be between 0 and 9.');
         }
     }
 

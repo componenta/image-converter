@@ -12,12 +12,13 @@ final class GdJpegConverter implements ImageConverterInterface, ImageConversionT
     /** @var list<string> */
     private const array SUPPORTED = ['image/png', 'image/webp', 'image/avif', 'image/bmp'];
 
+    /** @throws ConversionExceptionInterface */
     public function __construct(
         private readonly int $defaultQuality = 82,
         private readonly ImageConversionLimits $limits = new ImageConversionLimits(),
     ) {
         if ($defaultQuality < 0 || $defaultQuality > 100) {
-            throw ConversionException::invalidQuality($defaultQuality);
+            throw new ConversionConfigurationException(sprintf('Default quality must be between 0 and 100, %d given.', $defaultQuality));
         }
     }
 
