@@ -6,7 +6,7 @@ namespace Componenta\Image\Converter\Internal;
 
 use Componenta\Image\ConversionException;
 
-/** Bounded RIFF framing check (RFC 9649, sections 2.3 and 2.4), not a bitstream validator. @internal */
+/** Bounded still-image RIFF framing check (RFC 9649, sections 2.3–2.7), not a bitstream validator. @internal */
 final class WebpStructure
 {
     public static function assertStatic(string $raw): void
@@ -21,6 +21,8 @@ final class WebpStructure
         }
         // RFC 9649 permits readers to ignore bytes outside the RIFF envelope.
         $end = 8 + $riffSize;
+        $hasExtendedHeader = false;
+        $hasImage = false;
         for ($offset = 12; $offset < $end;) {
             $remaining = $end - $offset;
             if ($remaining < 8) {
@@ -39,9 +41,27 @@ final class WebpStructure
                 }
                 ++$offset;
             }
-            if ($type === 'VP8X' && $length >= 1 && (ord($raw[$payload]) & 0x02) !== 0) {
+            if ($type === 'VP8X') {
+                if ($hasExtendedHeader || $hasImage || $length < 10) {
+                    throw new ConversionException('Invalid or duplicate WebP extended header.');
+                }
+                $hasExtendedHeader = true;
+                if ((ord($raw[$payload]) & 0x02) !== 0) {
+                    throw new ConversionException('Animated WebP is not supported.');
+                }
+            } elseif ($type === 'VP8 ' || $type === 'VP8L') {
+                if ($hasImage) {
+                    throw new ConversionException('Multiple WebP image bitstreams are not supported.');
+                }
+                $hasImage = true;
+            } elseif ($type === 'ANMF') {
+                // Even without the animation flag, a frame chunk must not be silently discarded.
                 throw new ConversionException('Animated WebP is not supported.');
             }
+            // RFC 9649 requires readers to ignore ANIM when the animation flag is clear.
+        }
+        if (!$hasImage) {
+            throw new ConversionException('Missing WebP image bitstream.');
         }
     }
 }

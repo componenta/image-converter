@@ -27,3 +27,5 @@
 - GD uses seven-bit internal alpha precision. PNG's lossless encoding does not guarantee exact preservation of every original eight-bit alpha sample through GD.
 
 - `ImageConverter::$targetMimeTypes` exposes registered canonical target MIME types (unique, ordered, read-only); it does not probe codec availability.
+
+- WebP still-image validation also rejects multiple image bitstreams, duplicate or misplaced extended headers, and animation frame chunks even when the animation flag is clear. Unflagged animation control metadata alone remains accepted.
