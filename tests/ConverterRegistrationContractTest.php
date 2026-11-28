@@ -205,3 +205,26 @@ test('target discovery does not call the detector or test native codec availabil
     $service = new ImageConverter($detector, [$codec]);
     expect($service->targetMimeTypes)->toBe(['image/x-unavailable']);
 });
+
+
+test('malformed targets cannot normalize to a registered MIME type or alias', function (string $target): void {
+    $detector = $this->createMock(MimeTypeDetectorInterface::class);
+    $detector->expects($this->never())->method('detectMimeType');
+    $service = new ImageConverter($detector, [
+        new RegistrationCodec('image/x-special', ['special']),
+        new GdJpegConverter(),
+    ]);
+    expect($service->canConvert('source', $target))->toBeFalse();
+    expect(fn() => $service->convert('source', $target))->toThrow(ConversionException::class);
+})->with([
+    "\0special", "special\0", "special\n", "\rspecial", "\x0bspecial",
+    "image/jpeg\r\n", "\0image/jpeg", '.image/jpeg', '..jpg', '...special',
+]);
+
+test('malformed short alias declarations cannot be published through normalization', function (string $alias): void {
+    $service = registrationService();
+    expect(fn() => $service->addConverter(new RegistrationCodec('image/x-special', ['good', $alias])))
+        ->toThrow(InvalidArgumentException::class);
+    expect($service->targetMimeTypes)->toBe([]);
+    expect($service->canConvert('source', 'good'))->toBeFalse();
+})->with(["\0special", "special\0", "special\n", "\rspecial", "\x0bspecial", '..special', '.image/x-special']);

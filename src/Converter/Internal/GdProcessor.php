@@ -14,11 +14,11 @@ final class GdProcessor
 {
     public static function normalize(string $mimeType): string
     {
-        return match (strtolower(trim($mimeType))) {
+        return match (strtolower(trim($mimeType, " \t"))) {
             'image/pjpeg' => 'image/jpeg',
             'image/x-png' => 'image/png',
             'image/x-ms-bmp' => 'image/bmp',
-            default => strtolower(trim($mimeType)),
+            default => strtolower(trim($mimeType, " \t")),
         };
     }
 

@@ -159,9 +159,13 @@ final class ImageConverter
 
     private function normalizeTargetType(string $targetType): string
     {
-        $targetType = strtolower(trim($targetType));
+        // Only horizontal whitespace is permitted around a MIME type or short alias.
+        $targetType = strtolower(trim($targetType, " \t"));
         $isMime = str_starts_with($targetType, 'image/');
-        $name = $isMime ? substr($targetType, 6) : ltrim($targetType, '.');
+        $name = $isMime ? substr($targetType, 6) : $targetType;
+        if (!$isMime && str_starts_with($name, '.') && !str_contains($name, '/')) {
+            $name = substr($name, 1);
+        }
         $name = match ($name) {
             'jpg', 'pjpeg', 'jpeg' => 'jpeg',
             'x-png', 'png' => 'png',
