@@ -80,6 +80,8 @@ The `Compare performance` workflow compares v1.0.1 and the candidate on the same
 
 The `Native memory` workflow also compares candidate time and peak RSS against a pinned v2 reference (median of three independent processes per case). A regression must exceed both 20% and 10 ms for time, or both 15% and 8 MiB for RSS; an independent repeat confirms the threshold before failing. Historical v1 results and PHPBench remain diagnostic. The thresholds are CI noise tolerances, not resource guarantees.
 
+The PHP 8.4/8.5 check runs deterministic, bounded input mutations and a Linux worker memory smoke test. It rejects growth above 32 MiB current RSS or 2 MiB live PHP memory across two successive samples after warmup. It is a leak smoke test, not proof of a strict memory bound.
+
 ## License
 
 [MIT](LICENSE).
