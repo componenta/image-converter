@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 use Componenta\Config\ConfigKey;
 use Componenta\Image\ConfigProvider;
+use Componenta\Image\CompressionExceptionInterface;
+use Componenta\Image\CompressionFileExceptionInterface;
+use Componenta\Image\ConversionExceptionInterface;
+use Componenta\Image\ConversionFileExceptionInterface;
 use Componenta\Image\Factory\ImageCompressorFactory;
 use Componenta\Image\Factory\ImageConverterFactory;
 use Componenta\Image\ImageCompressionOptions;
@@ -164,7 +168,7 @@ $truncated = substr($jpeg->content, 0, -2);
 try {
     $compressor->compress($truncated);
     throw new RuntimeException('Compressor accepted a truncated JPEG.');
-} catch (\Componenta\Image\CompressionException $error) {
+} catch (CompressionExceptionInterface $error) {
     if (!str_contains($error->getMessage(), 'end marker')) {
         throw $error;
     }
@@ -172,9 +176,48 @@ try {
 try {
     $converter->convert($truncated, 'png');
     throw new RuntimeException('Converter accepted a truncated JPEG.');
-} catch (\Componenta\Image\ConversionException $error) {
+} catch (ConversionExceptionInterface $error) {
     if (!str_contains($error->getMessage(), 'end marker')) {
         throw $error;
     }
 }
 echo "Both packages rejected a truncated JPEG.", PHP_EOL;
+
+
+// Exercise both file APIs and their disjoint exception contracts in the
+// same consumer, using the actual pair of candidate package versions.
+$path = tempnam(sys_get_temp_dir(), 'image-coinstall-');
+if ($path === false) {
+    throw new RuntimeException('Unable to create a fixture file.');
+}
+try {
+    if (file_put_contents($path, $png) !== strlen($png)) {
+        throw new RuntimeException('Unable to write the fixture file.');
+    }
+    $convertedFromFile = $converter->convertFile($path, 'webp', new ImageConversionOptions(quality: 85));
+    $compressedFromFile = $compressor->compressFile($path, new ImageCompressionOptions(compressionLevel: 6));
+    if ($convertedFromFile->content !== $converted->content
+        || $compressedFromFile->content !== $compressor->compress($png, new ImageCompressionOptions(compressionLevel: 6))->content
+        || file_get_contents($path) !== $png) {
+        throw new RuntimeException('File methods disagree with byte methods or modified their source.');
+    }
+    try {
+        $converter->convertFile($path . '.missing', 'webp');
+        throw new RuntimeException('Converter accepted a missing file.');
+    } catch (ConversionFileExceptionInterface $error) {
+        if ($error instanceof ConversionExceptionInterface || $error instanceof CompressionFileExceptionInterface) {
+            throw new RuntimeException('Conversion file exception leaked into another exception category.');
+        }
+    }
+    try {
+        $compressor->compressFile($path . '.missing');
+        throw new RuntimeException('Compressor accepted a missing file.');
+    } catch (CompressionFileExceptionInterface $error) {
+        if ($error instanceof CompressionExceptionInterface || $error instanceof ConversionFileExceptionInterface) {
+            throw new RuntimeException('Compression file exception leaked into another exception category.');
+        }
+    }
+} finally {
+    unlink($path);
+}
+echo "File APIs and independent exception contracts passed.", PHP_EOL;
